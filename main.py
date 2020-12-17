@@ -1,11 +1,13 @@
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+from transformers import BertTokenizer, BertForSequenceClassification, AdamW, logging
 from torch.utils.data import DataLoader
 import datasets
 from tqdm import tqdm
 from argparse import ArgumentParser
 import random
+
+logging.set_verbosity_error()
 
 parser = ArgumentParser(description='NLi Transformers')
 
@@ -59,6 +61,8 @@ def get_nli_dataset(config, tokenizer):
 
     # For testing purposes get a slammer slice of the training data
     num_examples = int(round(len(nli_data['train']['label']) * config.fraction_of_train_data))
+
+    print("Training with {} examples.".format(num_examples))
     
     train_dataset = nli_data['train'][:num_examples]
 
@@ -93,7 +97,7 @@ def get_nli_dataset(config, tokenizer):
 
 
 def train(config, train_loader, model, optim, device, epochs=3):
-    print("Starting training...")
+    print("Starting training...\n")
     model.train()
     for epoch in range(epochs):
         print("Epoch: {}/{}".format(epoch+1, epochs))
@@ -145,14 +149,9 @@ def main():
     torch.manual_seed(config.seed)
     random.seed(config.seed)
 
-    if config.gpu is not None:
-        torch.cuda.set_device(config.gpu)
-        device = torch.device('cuda:{}'.format(config.gpu))
-        torch.cuda.manual_seed(config.seed)
-        print("\nTraining on GPU[{}] (torch.device({})).".format(config.gpu, device))
-    else:
-        device = torch.device('cpu')
-        print("GPU not available so training on CPU (torch.device({})).".format(device))
+    device = torch.device('cuda:{}'.format(config.gpu)) if torch.cuda.is_available() else torch.device('cpu')
+
+    print("Training on {}.".format(device))
 
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
