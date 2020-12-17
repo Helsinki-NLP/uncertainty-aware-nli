@@ -11,7 +11,7 @@ parser = ArgumentParser(description='NLI with Transformers')
 
 parser.add_argument('--batch_size',
                     type=int,
-                    default=100)
+                    default=32)
 parser.add_argument('--epochs',
                     type=int,
                     default=2)
