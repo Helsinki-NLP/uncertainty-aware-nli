@@ -20,9 +20,6 @@ parser.add_argument('--log_every',
 parser.add_argument('--learning_rate',
                     type=float,
                     default=0.00005)
-parser.add_argument('--weight_decay',
-                    type=float,
-                    default=0)
 parser.add_argument('--gpu',
                     type=int,
                     default=None)
@@ -94,7 +91,7 @@ def get_nli_dataset(config, tokenizer):
     return train_loader, dev_loader, test_loader
 
 
-def train(train_loader, model, optim, device, epochs=3):
+def train(config, train_loader, model, optim, device, epochs=3):
     print("Starting training...")
     model.train()
     for epoch in range(epochs):
@@ -108,7 +105,7 @@ def train(train_loader, model, optim, device, epochs=3):
             loss = outputs[0]
             loss.backward()
             optim.step()
-            if i == 0 or i % 10 == 0 or i+1 == len(train_loader):
+            if i == 0 or i % config.log_every == 0 or i+1 == len(train_loader):
                 print("Progress: {:3.0f}% - Batch: {:>4.0f}/{:<4.0f} - Loss: {:<.4f}".format(
                     100. * (1+i) / len(train_loader), # Progress
                     i+1, len(train_loader), # Batch
@@ -164,7 +161,7 @@ def main():
     optim = AdamW(model.parameters(), lr=5e-5)
     model.to(device)
 
-    train(train_loader, model, optim, device, epochs=config.epochs)
+    train(config, train_loader, model, optim, device, epochs=config.epochs)
     labels, preds = evaluate(model, dev_loader, device)
     accuracy = (labels == preds).mean()
 
