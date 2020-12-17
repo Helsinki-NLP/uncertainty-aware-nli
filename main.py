@@ -7,7 +7,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 import random
 
-parser = ArgumentParser(description='NLi Transformers')
+parser = ArgumentParser(description='NLI with Transformers')
 
 parser.add_argument('--batch_size',
                     type=int,
@@ -104,29 +104,24 @@ def get_nli_dataset(config, tokenizer):
     return train_loader, dev_loader, test_loader
 
 
-def train(config, train_loader, model, optim, device, epochs=3):
+def train(config, train_loader, model, optim, device, epoch):
     print("Starting training...\n")
     model.train()
-    for epoch in range(epochs):
-        print("Epoch: {}/{}".format(epoch+1, epochs))
-        for i, batch in enumerate(train_loader):
-            optim.zero_grad()
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
-            outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
-            loss = outputs[0]
-            loss.backward()
-            optim.step()
-            if i == 0 or i % config.log_every == 0 or i+1 == len(train_loader):
-                print("Progress: {:3.0f}% - Batch: {:>4.0f}/{:<4.0f} - Loss: {:<.4f}".format(
-                    100. * (1+i) / len(train_loader), # Progress
-                    i+1, len(train_loader), # Batch
-                    loss.item())) # Loss
-        snapshot_path = 'model_snapshot_epoch_{}.pt'.format(epoch)
-        torch.save(model, snapshot_path)
-
-    print("Done training!")
+    print("Epoch: {}/{}".format(epoch+1, config.epochs))
+    for i, batch in enumerate(train_loader):
+        optim.zero_grad()
+        input_ids = batch['input_ids'].to(device)
+        attention_mask = batch['attention_mask'].to(device)
+        labels = batch['labels'].to(device)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        loss = outputs[0]
+        loss.backward()
+        optim.step()
+        if i == 0 or i % config.log_every == 0 or i+1 == len(train_loader):
+            print("Progress: {:3.0f}% - Batch: {:>4.0f}/{:<4.0f} - Loss: {:<.4f}".format(
+                100. * (1+i) / len(train_loader), # Progress
+                i+1, len(train_loader), # Batch
+                loss.item())) # Loss
 
 
 def evaluate(model, dataloader, device):
@@ -197,10 +192,17 @@ def main():
     optim = AdamW(model.parameters(), lr=config.learning_rate)
     model.to(device)
 
-    train(config, train_loader, model, optim, device, epochs=config.epochs)
-    dev_labels, dev_preds = evaluate(model, dev_loader, device)
-    dev_accuracy = (dev_labels == dev_preds).mean()
-    print("\nDev accuracy: {}".format(dev_accuracy))
+    for epoch in range(config.epochs):
+        # Train an epoch
+        train(config, train_loader, model, optim, device, epoch)
+        # Validate
+        dev_labels, dev_preds = evaluate(model, dev_loader, device)
+        # Print validation accuracy
+        dev_accuracy = (dev_labels == dev_preds).mean()
+        print("\nDev accuracy after epoch {}: {}".format(epoch, dev_accuracy))
+        #Save model
+        snapshot_path = 'model_snapshot_epoch_{}.pt'.format(epoch)
+        torch.save(model, snapshot_path)
 
     if config.dataset != 'multi_nli':
         test_labels, test_preds = evaluate(model, test_loader, device)
