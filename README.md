@@ -1,13 +1,13 @@
 # NLI with Transformers
 Fine-tune [transformers](https://huggingface.co/transformers/) with NLI data. 
 
-Supports the following models:
-* [`BartForSequenceClassification`](https://huggingface.co/transformers/model_doc/bart.html#bartforsequenceclassification)
-* [`BertForSequenceClassification`](https://huggingface.co/transformers/model_doc/bert.html#bertforsequenceclassification)
-* [`DistilBertForSequenceClassification`](https://huggingface.co/transformers/model_doc/distilbert.html#distilbertforsequenceclassification)
-* [`GPT2ForSequenceClassification`](https://huggingface.co/transformers/model_doc/gpt2.html#gpt2forsequenceclassification)
-* [`RobertaForSequenceClassification`](https://huggingface.co/transformers/model_doc/roberta.html#robertaforsequenceclassification)
-* [`XLNetForSequenceClassification`](https://huggingface.co/transformers/model_doc/xlnet.html#xlnetforsequenceclassification)
+Supports the Huggingface implementation of the following models:
+* [BERT](https://huggingface.co/transformers/model_doc/bart.html#bartforsequenceclassification)
+* [BART](https://huggingface.co/transformers/model_doc/bert.html#bertforsequenceclassification)
+* [DistilBERT](https://huggingface.co/transformers/model_doc/distilbert.html#distilbertforsequenceclassification)
+* [GPT2](https://huggingface.co/transformers/model_doc/gpt2.html#gpt2forsequenceclassification)
+* [RoBERTa](https://huggingface.co/transformers/model_doc/roberta.html#robertaforsequenceclassification)
+* [XLNet](https://huggingface.co/transformers/model_doc/xlnet.html#xlnetforsequenceclassification)
 
 ## Requirements
 
