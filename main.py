@@ -14,7 +14,7 @@ parser.add_argument('--batch_size',
                     default=32)
 parser.add_argument('--epochs',
                     type=int,
-                    default=2)
+                    default=4)
 parser.add_argument('--log_every',
                     type=int,
                     default=10)
