@@ -1,13 +1,11 @@
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW, logging
+from transformers import BertTokenizer, BertForSequenceClassification, AdamW
 from torch.utils.data import DataLoader
 import datasets
 from tqdm import tqdm
 from argparse import ArgumentParser
 import random
-
-logging.set_verbosity_error()
 
 parser = ArgumentParser(description='NLi Transformers')
 
@@ -60,9 +58,10 @@ def get_nli_dataset(config, tokenizer):
     nli_data = datasets.load_dataset(config.dataset)
 
     # For testing purposes get a slammer slice of the training data
-    num_examples = int(round(len(nli_data['train']['label']) * config.fraction_of_train_data))
+    all_examples = len(nli_data['train']['label'])
+    num_examples = int(round(all_examples * config.fraction_of_train_data))
 
-    print("Training with {} examples.".format(num_examples))
+    print("Training with {}/{} examples.".format(num_examples, all_examples))
     
     train_dataset = nli_data['train'][:num_examples]
 
