@@ -1,2 +1,2 @@
-# nli-with-transformers
-Fine tune transformers with NLI data
+# NLI with Transformers
+Fine tune [transformers](https://huggingface.co/transformers/) with NLI data.
