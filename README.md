@@ -1,5 +1,5 @@
 # NLI with Transformers
-Fine tune [transformers](https://huggingface.co/transformers/) with NLI data. 
+Fine-tune [transformers](https://huggingface.co/transformers/) with NLI data. 
 
 Support the following models:
 * [`BartForSequenceClassification`](https://huggingface.co/transformers/model_doc/bart.html#bartforsequenceclassification)
@@ -16,7 +16,7 @@ Install requirements by running:
 pip3 install -r requirements.txt
 ```
 
-## Train
+## Train & Evaluate
 
 To fine-tune the DistilBERT model, run the following:
 
