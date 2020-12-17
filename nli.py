@@ -157,18 +157,28 @@ def main():
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
 
-    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=3)
+    # SNLI has examples with missing label (marked with -1 in Huggingface Datasets)
+    if config.dataset == 'snli':
+        num_labels = 4
+    else:
+        num_labels = 3
+
+    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=num_labels)
     optim = AdamW(model.parameters(), lr=5e-5)
     model.to(device)
 
     train(config, train_loader, model, optim, device, epochs=config.epochs)
-    labels, preds = evaluate(model, dev_loader, device)
-    accuracy = (labels == preds).mean()
+    dev_labels, dev_preds = evaluate(model, dev_loader, device)
+    dev_accuracy = (dev_labels == dev_preds).mean()
+    print("\nDev accuracy: {}".format(dev_accuracy))
 
-    final_snapshot_path = 'model_final_snapshot_acc_{}_epochs_{}.pt'.format(accuracy, epoch)
-    torch.save(model, snapshot_path)
+    if config.dataset != 'multi_nli':
+        test_labels, test_preds = evaluate(model, test_loader, device)
+        test_accuracy = (test_labels == test_preds).mean()
+        print("\nTest accuracy: {}".format(test_accuracy))
 
-    print("\nAccuracy: {}".format(accuracy))
+    final_snapshot_path = 'model_final_snapshot_devacc_{}_epochs_{}.pt'.format(dev_accuracy, config.epochs)
+    torch.save(model, final_snapshot_path)        
 
 
 if __name__ == '__main__':
