@@ -165,7 +165,7 @@ def main():
         num_labels = 3
 
     model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=num_labels)
-    optim = AdamW(model.parameters(), lr=5e-5)
+    optim = AdamW(model.parameters(), lr=config.learning_rate)
     model.to(device)
 
     train(config, train_loader, model, optim, device, epochs=config.epochs)
