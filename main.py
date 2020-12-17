@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from transformers import BertTokenizer, BertForSequenceClassification, AdamW
+from transformers import AdamW
 from torch.utils.data import DataLoader
 import datasets
 from tqdm import tqdm
@@ -36,6 +36,15 @@ parser.add_argument('--dataset',
                     choices=['multi_nli',
                              'snli'],
                     default='multi_nli')
+parser.add_argument('--model',
+                    type=str,
+                    choices=['bert',
+                             'roberta',
+                             'distilbert',
+                             'bart',
+                             'xlnet',
+                             'gpt2'],
+                    default='bert')
 
 
 class NLIDataset(torch.utils.data.Dataset):
@@ -152,17 +161,39 @@ def main():
 
     print("Training on {}.".format(device))
 
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-
-    train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
-
     # SNLI has examples with missing label (marked with -1 in Huggingface Datasets)
     if config.dataset == 'snli':
         num_labels = 4
     else:
         num_labels = 3
 
-    model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=num_labels)
+    if config.model == 'roberta':
+        from transformers import RobertaTokenizer, RobertaForSequenceClassification
+        tokenizer = RobertaTokenizer.from_pretrained('roberta-base')
+        model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=num_labels)
+    elif config.model == 'bart':
+        from transformers import BartTokenizer, BartForSequenceClassification
+        tokenizer = BartTokenizer.from_pretrained('facebook/bart-large')
+        model = BartForSequenceClassification.from_pretrained('facebook/bart-large', num_labels=num_labels)
+    elif config.model == 'distilbert':
+        from transformers import DistilBertTokenizer, DistilBertForSequenceClassification
+        tokenizer = DistilBertTokenizer.from_pretrained('distilbert-base-uncased')
+        model = DistilBertForSequenceClassification.from_pretrained('distilbert-base-uncased', num_labels=num_labels)
+    elif config.model == 'xlnet':
+        from transformers import XLNetTokenizer, XLNetForSequenceClassification
+        tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
+        model = XLNetForSequenceClassification.from_pretrained('xlnet-base-cased')
+    elif config.model == 'gpt2':
+        from transformers import GPT2Tokenizer, GPT2ForSequenceClassification
+        tokenizer = GPT2Tokenizer.from_pretrained('microsoft/dialogrpt')
+        model = GPT2ForSequenceClassification.from_pretrained('microsoft/dialogrpt')
+    else:
+        from transformers import BertTokenizer, BertForSequenceClassification
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=num_labels)
+
+    train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
+
     optim = AdamW(model.parameters(), lr=config.learning_rate)
     model.to(device)
 
