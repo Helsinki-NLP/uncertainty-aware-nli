@@ -89,9 +89,9 @@ def get_nli_dataset(config, tokenizer):
     val_labels = dev_dataset['label']
     test_labels = test_dataset['label']
 
-    train_encodings = tokenizer(train_dataset['premise'], train_dataset['hypothesis'], padding=True)
-    val_encodings = tokenizer(dev_dataset['premise'], dev_dataset['hypothesis'], padding=True)
-    test_encodings = tokenizer(test_dataset['premise'], test_dataset['hypothesis'], padding=True)
+    train_encodings = tokenizer(train_dataset['premise'], train_dataset['hypothesis'], truncation=True, padding=True)
+    val_encodings = tokenizer(dev_dataset['premise'], dev_dataset['hypothesis'], truncation=True, padding=True)
+    test_encodings = tokenizer(test_dataset['premise'], test_dataset['hypothesis'], truncation=True, padding=True)
 
     train_dataset = NLIDataset(train_encodings, train_labels)
     val_dataset = NLIDataset(val_encodings, val_labels)
