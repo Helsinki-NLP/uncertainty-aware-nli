@@ -1,7 +1,7 @@
 # NLI with Transformers
 Fine-tune [transformers](https://huggingface.co/transformers/) with NLI data. 
 
-Support the following models:
+Supports the following models:
 * [`BartForSequenceClassification`](https://huggingface.co/transformers/model_doc/bart.html#bartforsequenceclassification)
 * [`BertForSequenceClassification`](https://huggingface.co/transformers/model_doc/bert.html#bertforsequenceclassification)
 * [`DistilBertForSequenceClassification`](https://huggingface.co/transformers/model_doc/distilbert.html#distilbertforsequenceclassification)
