@@ -18,7 +18,7 @@ pip3 install -r requirements.txt
 
 ## Train
 
-To train fine tune the DistilBERT model, run the following:
+To fine-tune the DistilBERT model, run the following:
 
 ```console
 python3 main.py \
