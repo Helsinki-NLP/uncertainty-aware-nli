@@ -199,9 +199,9 @@ def main():
         dev_labels, dev_preds = evaluate(model, dev_loader, device)
         # Print validation accuracy
         dev_accuracy = (dev_labels == dev_preds).mean()
-        print("\nDev accuracy after epoch {}: {}".format(epoch, dev_accuracy))
+        print("\nDev accuracy after epoch {}: {}".format(epoch+1, dev_accuracy))
         #Save model
-        snapshot_path = '{}-{}_snapshot_epoch_{}_devacc_{}.pt'.format(config.model, config.dataset, epoch, round(dev_accuracy, 2))
+        snapshot_path = '{}-{}_snapshot_epoch_{}_devacc_{}.pt'.format(config.model, config.dataset, epoch+1, round(dev_accuracy, 3))
         torch.save(model, snapshot_path)
 
     if config.dataset != 'multi_nli':
@@ -209,7 +209,7 @@ def main():
         test_accuracy = (test_labels == test_preds).mean()
         print("\nTest accuracy: {}".format(test_accuracy))
 
-    final_snapshot_path = '{}-{}_final_snapshot_epochs_{}_devacc_{}.pt'.format(config.model, config.dataset, config.epochs, round(dev_accuracy, 2))
+    final_snapshot_path = '{}-{}_final_snapshot_epochs_{}_devacc_{}.pt'.format(config.model, config.dataset, config.epochs, round(dev_accuracy, 3))
     torch.save(model, final_snapshot_path)        
 
 
