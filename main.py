@@ -177,11 +177,11 @@ def main():
     elif config.model == 'xlnet':
         from transformers import XLNetTokenizer, XLNetForSequenceClassification
         tokenizer = XLNetTokenizer.from_pretrained('xlnet-base-cased')
-        model = XLNetForSequenceClassification.from_pretrained('xlnet-base-cased')
+        model = XLNetForSequenceClassification.from_pretrained('xlnet-base-cased', num_labels=num_labels)
     elif config.model == 'gpt2':
         from transformers import GPT2Tokenizer, GPT2ForSequenceClassification
         tokenizer = GPT2Tokenizer.from_pretrained('microsoft/dialogrpt')
-        model = GPT2ForSequenceClassification.from_pretrained('microsoft/dialogrpt')
+        model = GPT2ForSequenceClassification.from_pretrained('microsoft/dialogrpt', num_labels=num_labels)
     else:
         from transformers import BertTokenizer, BertForSequenceClassification
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
