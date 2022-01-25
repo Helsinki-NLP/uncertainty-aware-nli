@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 def _get_data(file_path: str):
     data = [json.loads(line) for line in open(file_path, "r")]
     dataset = pd.DataFrame(data)
-    return dataset["sentence1"], dataset["sentence2"], dataset["gold_label"]
+    return dataset["sentence1"].tolist(), dataset["sentence2"].tolist(), dataset["gold_label"].tolist()
 
 
 class NLIDataset(torch.utils.data.Dataset):
