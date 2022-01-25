@@ -19,7 +19,7 @@ class NLIDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        item["labels"] = torch.tensor(self.labels[idx])
+        item["labels"] = torch.tensor(int(self.labels[idx]))
         return item
 
     def __len__(self):
@@ -33,15 +33,15 @@ def get_nli_dataset(config, tokenizer):
         train_premises, train_hypotheses, train_labels = _get_data(
             config.data_path + "/train.jsonl"
         )
-        logging.info(f"First training example {train_premises[0]}, {train_hypotheses[0]}, {train_labels[0]}")
+        logging.info(f"First training example: {train_premises[0]}, {train_hypotheses[0]}, {train_labels[0]}")
         dev_premises, dev_hypotheses, dev_labels = _get_data(
             config.data_path + "/dev.jsonl"
         )
-        logging.info(f"First dev example {dev_premises[0]}, {dev_hypotheses[0]}, {dev_labels[0]}")
+        logging.info(f"First dev example: {dev_premises[0]}, {dev_hypotheses[0]}, {dev_labels[0]}")
         test_premises, test_hypotheses, test_labels = _get_data(
             config.data_path + "/test.jsonl"
         )
-        logging.info(f"First test example {test_premises[0]}, {test_hypotheses[0]}, {test_labels[0]}")
+        logging.info(f"First test example: {test_premises[0]} --> {test_hypotheses[0]}, ({test_labels[0]})")
     else:
         train_dataset = datasets.load_dataset(
             "snli", config.train_language, split="train"
