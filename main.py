@@ -8,6 +8,9 @@ import random
 import torch
 from tqdm import tqdm
 from transformers import AdamW
+from torch.optim.swa_utils import AveragedModel, SWALR
+from torch.optim.lr_scheduler import CosineAnnealingLR
+import time
 
 
 parser = ArgumentParser(description="NLI with Transformers")
@@ -15,7 +18,7 @@ parser = ArgumentParser(description="NLI with Transformers")
 parser.add_argument("--train_language", type=str, default=None)
 parser.add_argument("--test_language", type=str, default=None)
 parser.add_argument("--batch_size", type=int, default=16)
-parser.add_argument("--epochs", type=int, default=3)
+parser.add_argument("--epochs", type=int, default=1)
 parser.add_argument("--log_every", type=int, default=100)
 parser.add_argument("--learning_rate", type=float, default=0.00005)
 parser.add_argument("--gpu", type=int, default=None)
@@ -32,19 +35,24 @@ parser.add_argument("--data_path", type=str)
 logging.basicConfig(level=logging.INFO)
 
 
-def train(config, train_loader, model, optim, device, epoch):
+def train(config, train_loader, model, swa_model, optim, device, epoch, scheduler, swa_scheduler, swa_start):
     logging.info("Starting training...")
-    model.train()
+    swa_model.train()
     logging.info(f"Epoch: {epoch + 1}/{config.epochs}")
     for i, batch in enumerate(train_loader):
         optim.zero_grad()
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
         labels = batch["labels"].to(device)
-        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
+        outputs = swa_model(input_ids, attention_mask=attention_mask, labels=labels)
         loss = outputs[0]
         loss.backward()
         optim.step()
+        if epoch > swa_start:
+          swa_model.update_parameters(model)
+          swa_scheduler.step()
+        else:
+            scheduler.step()
         if i == 0 or i % config.log_every == 0 or i + 1 == len(train_loader):
             logging.info(
                 "Epoch: {} - Progress: {:3.0f}% - Batch: {:>4.0f}/{:<4.0f} - Loss: {:<.4f}".format(
@@ -100,11 +108,17 @@ def main():
     optim = AdamW(model.parameters(), lr=config.learning_rate)
     model.to(device)
 
+    swa_model = AveragedModel(model)
+    scheduler = CosineAnnealingLR(optim, T_max=5)
+    swa_start = 1
+    swa_scheduler = SWALR(optim, swa_lr=0.00005)
+
     Path(config.output_path).mkdir(parents=True, exist_ok=True)
+    start = time.time()
 
     for epoch in range(config.epochs):
-        train(config, train_loader, model, optim, device, epoch)
-        dev_labels, dev_preds = evaluate(model, dev_loader, device)
+        train(config, train_loader, model, swa_model, optim, device, epoch, scheduler, swa_scheduler, swa_start)
+        dev_labels, dev_preds = evaluate(swa_model, dev_loader, device)
 
         dev_accuracy = (dev_labels == dev_preds).mean()
         logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
@@ -112,15 +126,29 @@ def main():
         snapshot_path = f"{config.output_path}/{config.model}-mnli_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
         torch.save(model, snapshot_path)
 
-    test_labels, test_preds = evaluate(model, test_loader, device)
+    end = time.time()
+    hours, rem = divmod(end-start, 3600)
+    minutes, seconds = divmod(rem, 60)
+
+    torch.optim.swa_utils.update_bn(train_loader, swa_model)
+    test_labels, test_preds = evaluate(swa_model, test_loader, device)
     test_accuracy = (test_labels == test_preds).mean()
 
-    logging.info(f"Test accuracy for model {config.model}: {test_accuracy}")
+    logging.info(f"=== SUMMARY ===")
+    logging.info(f"Model: {model.__class__.__name__}")
+    logging.info(f"Epochs: {config.epochs}")
+    logging.info(f"Batch size: {config.batch_size}")
+    logging.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
+    logging.info(f"Test accuracy: {test_accuracy}")
 
     with open(
         f"{config.output_path}/{config.model}.results.txt",
         "w",
     ) as resultfile:
+        resultfile.write(f"Model: {model.__class__.__name__}")
+        resultfile.write(f"Epochs: {config.epochs}")
+        resultfile.write(f"Batch size: {config.batch_size}")
+        resultfile.write(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
         resultfile.write(f"Test accuracy: {test_accuracy}")
 
     final_snapshot_path = f"{config.output_path}/{config.model}-mnli_final_snapshot_epochs_{config.epochs}_devacc_{round(dev_accuracy, 3)}.pt"
