@@ -32,15 +32,15 @@ def get_nli_dataset(config, tokenizer):
 
     if config.data_path:
         train_premises, train_hypotheses, train_labels = _get_data(
-            config.data_path + "/train.jsonl"
+            config.data_path + "/multinli_1.0_train.jsonl"
         )
         logging.info(f"First training example: {train_premises[0]} --> {train_hypotheses[0]} ({train_labels[0]})")
         dev_premises, dev_hypotheses, dev_labels = _get_data(
-            config.data_path + "/dev.jsonl"
+            config.data_path + "/multinli_1.0_dev_mismatched.jsonl"
         )
         logging.info(f"First dev example: {dev_premises[0]} --> {dev_hypotheses[0]} ({dev_labels[0]})")
         test_premises, test_hypotheses, test_labels = _get_data(
-            config.data_path + "/test.jsonl"
+            config.data_path + "/multinli_1.0_dev_mismatched.jsonl"
         )
         logging.info(f"First test example: {test_premises[0]} --> {test_hypotheses[0]} ({test_labels[0]})")
     else:

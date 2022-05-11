@@ -44,7 +44,7 @@ def train(config, train_loader, model, swa_model, optim, device, epoch, schedule
         input_ids = batch["input_ids"].to(device)
         attention_mask = batch["attention_mask"].to(device)
         labels = batch["labels"].to(device)
-        outputs = swa_model(input_ids, attention_mask=attention_mask, labels=labels)
+        outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
         loss = outputs[0]
         loss.backward()
         optim.step()
