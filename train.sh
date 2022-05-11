@@ -17,8 +17,8 @@ export MODEL=${1}
 srun python main.py \
     --model $MODEL \
     --learning_rate 2e-5 \
-    --batch_size 8 \
-    --epochs 3 \
+    --batch_size 16 \
+    --epochs 5 \
     --gpu 0 \
     --data_path data \
     --output_path output/$MODEL
