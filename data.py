@@ -10,6 +10,9 @@ def _get_data(file_path: str):
     data = [json.loads(line) for line in open(file_path, "r")]
     dataset = pd.DataFrame(data)
     dataset = dataset[dataset.gold_label != "-"]
+    dataset["gold_label"].replace(to_replace="entailment", value=0, inplace=True)
+    dataset["gold_label"].replace(to_replace="neutral", value=1, inplace=True)
+    dataset["gold_label"].replace(to_replace="contradiction", value=2, inplace=True)
     return dataset["sentence1"].tolist(), dataset["sentence2"].tolist(), dataset["gold_label"].tolist()
 
 
@@ -20,7 +23,7 @@ class NLIDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
-        item["labels"] = torch.tensor(int(self.labels[idx]))
+        item["labels"] = torch.tensor(self.labels[idx])
         return item
 
     def __len__(self):
