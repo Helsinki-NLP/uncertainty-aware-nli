@@ -125,7 +125,7 @@ def main():
             else:
                 scheduler.step()
 
-        dev_labels, dev_preds = evaluate(swa_model, dev_loader, device)
+        dev_labels, dev_preds = evaluate(model, dev_loader, device)
 
         dev_accuracy = (dev_labels == dev_preds).mean()
         logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
@@ -137,8 +137,12 @@ def main():
     hours, rem = divmod(end-start, 3600)
     minutes, seconds = divmod(rem, 60)
 
-    torch.optim.swa_utils.update_bn(train_loader, swa_model)
-    test_labels, test_preds = evaluate(swa_model, test_loader, device)
+    if config.swa:
+        torch.optim.swa_utils.update_bn(train_loader, swa_model)
+        test_labels, test_preds = evaluate(swa_model, test_loader, device)
+    else:
+        test_labels, test_preds = evaluate(model, test_loader, device)
+
     test_accuracy = (test_labels == test_preds).mean()
 
     logging.info(f"=== SUMMARY ===")
