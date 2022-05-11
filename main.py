@@ -105,7 +105,7 @@ def main():
     model.to(device)
 
     if config.swa:
-        logger.info("SWA training")
+        logging.info("SWA training")
         swa_model = AveragedModel(model)
         scheduler = CosineAnnealingLR(optim, T_max=10)
         swa_start = 1
