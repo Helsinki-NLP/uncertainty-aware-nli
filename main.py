@@ -110,9 +110,11 @@ def main():
         scheduler = CosineAnnealingLR(optim, T_max=10)
         swa_start = 1
         swa_scheduler = SWALR(optim, swa_lr=0.00005)
-        config.output_path = f"{config.output_path}_swa"
+        config.output_path = f"{config.output_path}-swa"
 
-    Path(config.output_path).mkdir(parents=True, exist_ok=True)
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    output_dir = f"{config.output_path}-{timestr}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
     start = time.time()
 
     for epoch in range(config.epochs):
@@ -130,7 +132,7 @@ def main():
         dev_accuracy = (dev_labels == dev_preds).mean()
         logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
 
-        snapshot_path = f"{config.output_path}/{config.model}-mnli_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
+        snapshot_path = f"{output_dir}/{config.model}-mnli_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
         torch.save(model, snapshot_path)
 
     end = time.time()
@@ -147,24 +149,24 @@ def main():
 
     logging.info(f"=== SUMMARY ===")
     logging.info(f"Model: {model.__class__.__name__}")
+    logging.info(f"SWA: {config.swa}")
     logging.info(f"Epochs: {config.epochs}")
     logging.info(f"Batch size: {config.batch_size}")
-    logging.info(f"SWA: {config.swa}")
     logging.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
     logging.info(f"Test accuracy: {test_accuracy}")        
 
     with open(
-        f"{config.output_path}/{config.model}.results.txt",
+        f"{output_dir}/{config.model}.results.txt",
         "w",
     ) as resultfile:
-        resultfile.write(f"Model: {model.__class__.__name__}")
-        resultfile.write(f"Epochs: {config.epochs}")
-        resultfile.write(f"Batch size: {config.batch_size}")
-        resultfile.write(f"SWA: {config.swa}")
-        resultfile.write(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
+        resultfile.write(f"Model: {model.__class__.__name__}\n")
+        resultfile.write(f"SWA: {config.swa}\n")
+        resultfile.write(f"Epochs: {config.epochs}\n")
+        resultfile.write(f"Batch size: {config.batch_size}\n")
+        resultfile.write(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\n")
         resultfile.write(f"Test accuracy: {test_accuracy}")
 
-    final_snapshot_path = f"{config.output_path}/{config.model}-mnli_final_snapshot_epochs_{config.epochs}_devacc_{round(dev_accuracy, 3)}.pt"
+    final_snapshot_path = f"{output_dir}/{config.model}-mnli_final_snapshot_epochs_{config.epochs}_devacc_{round(dev_accuracy, 3)}.pt"
     torch.save(model, final_snapshot_path)
 
 
