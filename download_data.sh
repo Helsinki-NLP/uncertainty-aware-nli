@@ -44,7 +44,7 @@ cp multinli_1.0/multinli_1.0_train.jsonl mnli-snli/train.jsonl
 cp multinli_1.0/multinli_1.0_dev_mismatched.jsonl mnli-snli/dev.jsonl
 cp snli_1.0/snli_1.0_test.jsonl snli-mnli-m/test.jsonl
 
-python3 prepare_sick_data.py
+python3 ../prepare_sick_data.py
 
 cp multinli_1.0/multinli_1.0_train.jsonl mnli-sick/train.jsonl
 cp multinli_1.0/multinli_1.0_dev_mismatched.jsonl mnli-sick/dev.jsonl
