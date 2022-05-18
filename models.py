@@ -13,8 +13,8 @@ def get_model(config):
             "bert-base-multilingual-cased", num_labels=3
         )
     else:
-        tokenizer = RobertaTokenizer.from_pretrained("roberta-large")
+        tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
         model = RobertaForSequenceClassification.from_pretrained(
-            "roberta-large", num_labels=3
+            "roberta-base", num_labels=3
         )
     return tokenizer, model
