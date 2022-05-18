@@ -18,8 +18,9 @@ parser = ArgumentParser(description="NLI with Transformers")
 
 parser.add_argument("--train_language", type=str, default=None)
 parser.add_argument("--test_language", type=str, default=None)
-parser.add_argument("--batch_size", type=int, default=16)
-parser.add_argument("--epochs", type=int, default=5)
+parser.add_argument("--batch_size", type=int, default=32)
+parser.add_argument("--early_stopping", type=int, default=3)
+parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--log_every", type=int, default=100)
 parser.add_argument("--method", type=str, choices=["swa", "none"], default="")
 parser.add_argument("--gpu", type=int, default=None)
@@ -87,12 +88,13 @@ def evaluate(model, dataloader, device):
             attention_mask = batch["attention_mask"].to(device)
             labels = batch["labels"].to(device)
             preds = model(input_ids, attention_mask=attention_mask, labels=labels)
+            loss = preds[0]
             preds = preds[1].argmax(dim=-1)
             eval_preds.append(preds.cpu().numpy())
             eval_labels.append(batch["labels"].cpu().numpy())
 
     logging.info("Done evaluation")
-    return np.concatenate(eval_labels), np.concatenate(eval_preds)
+    return np.concatenate(eval_labels), np.concatenate(eval_preds), loss.item()
 
 
 def main():
@@ -140,6 +142,10 @@ def main():
 
     start = time.time()
 
+    early_stopping = config.early_stopping
+    best_loss = 999
+    stopped_after = config.early_stopping
+
     for epoch in range(config.epochs):
         train(config, train_loader, model, optim, device, epoch)
 
@@ -150,13 +156,26 @@ def main():
             else:
                 scheduler.step()
 
-        dev_labels, dev_preds = evaluate(model, dev_loader, device)
+        dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
 
         dev_accuracy = (dev_labels == dev_preds).mean()
-        logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
 
-        snapshot_path = f"{output_dir}/{config.model}-mnli_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
+        logging.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
+        logging.info(f"Previous best: {best_loss:<.4f}")
+
+        snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
         torch.save(model, snapshot_path)
+
+        if dev_loss < best_loss:
+            best_loss = dev_loss
+            early_stopping = config.early_stopping
+        else: 
+            early_stopping = early_stopping - 1
+
+        if early_stopping == 0:
+            logging.info(f"Stopping early after {epoch+1}/{config.epochs} epochs.")
+            stopped_after = epoch+1
+            break
 
     end = time.time()
     hours, rem = divmod(end - start, 3600)
@@ -166,7 +185,7 @@ def main():
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds = evaluate(swa_model, test_loader, device)
     else:
-        test_labels, test_preds = evaluate(model, test_loader, device)
+        test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
 
     test_accuracy = (test_labels == test_preds).mean()
 
@@ -182,7 +201,7 @@ def main():
     logging.info(f"Model: {model.__class__.__name__}")
     logging.info(f"Optimizer {config.optimizer}")
     logging.info(f"Method: {config.method}")
-    logging.info(f"Epochs: {config.epochs}")
+    logging.info(f"Epochs: {stopped_after}/{config.epochs}")
     logging.info(f"Batch size: {config.batch_size}")
     logging.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
     logging.info(f"Test accuracy: {test_accuracy}")
@@ -195,7 +214,7 @@ def main():
         resultfile.write(f"Model: {model.__class__.__name__}\n")
         resultfile.write(f"Optimizer {config.optimizer}\n")
         resultfile.write(f"Method: {config.method}\n")
-        resultfile.write(f"Epochs: {config.epochs}\n")
+        resultfile.write(f"Epochs:  {stopped_after}/{config.epochs}\n")
         resultfile.write(f"Batch size: {config.batch_size}\n")
         resultfile.write(
             f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\n"
@@ -204,10 +223,10 @@ def main():
 
     with open("output/result_summary.tsv", "a") as summary_results:
         summary_results.write(
-            f"{config.dataset}\t{model.__class__.__name__}\t{config.optimizer}\t{config.method}\t{config.epochs}\t{config.batch_size}\t{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\t{test_accuracy}\n"
+            f"{config.dataset}\t{model.__class__.__name__}\t{config.optimizer}\t{config.method}\t{stopped_after}\t{config.batch_size}\t{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\t{test_accuracy}\n"
         )
 
-    final_snapshot_path = f"{output_dir}/{config.model}-mnli_final_snapshot_epochs_{config.epochs}_devacc_{round(dev_accuracy, 3)}.pt"
+    final_snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_final_snapshot_epochs_{stopped_after}_devacc_{round(dev_accuracy, 3)}.pt"
     torch.save(model, final_snapshot_path)
 
 
