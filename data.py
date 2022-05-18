@@ -13,7 +13,11 @@ def _get_data(file_path: str):
     dataset["gold_label"].replace(to_replace="entailment", value=0, inplace=True)
     dataset["gold_label"].replace(to_replace="neutral", value=1, inplace=True)
     dataset["gold_label"].replace(to_replace="contradiction", value=2, inplace=True)
-    return dataset["sentence1"].tolist(), dataset["sentence2"].tolist(), dataset["gold_label"].tolist()
+    return (
+        dataset["sentence1"].tolist(),
+        dataset["sentence2"].tolist(),
+        dataset["gold_label"].tolist(),
+    )
 
 
 class NLIDataset(torch.utils.data.Dataset):
@@ -33,19 +37,25 @@ class NLIDataset(torch.utils.data.Dataset):
 
 def get_nli_dataset(config, tokenizer):
 
-    if config.data_path:
+    if config.dataset:
         train_premises, train_hypotheses, train_labels = _get_data(
-            config.data_path + "/multinli_1.0_train.jsonl"
+            "data/" + config.dataset + "/train.jsonl"
         )
-        logging.info(f"First training example: {train_premises[0]} --> {train_hypotheses[0]} ({train_labels[0]})")
+        logging.info(
+            f"First training example: {train_premises[0]} --> {train_hypotheses[0]} ({train_labels[0]})"
+        )
         dev_premises, dev_hypotheses, dev_labels = _get_data(
-            config.data_path + "/multinli_1.0_dev_mismatched.jsonl"
+            "data/" + config.dataset + "/dev.jsonl"
         )
-        logging.info(f"First dev example: {dev_premises[0]} --> {dev_hypotheses[0]} ({dev_labels[0]})")
+        logging.info(
+            f"First dev example: {dev_premises[0]} --> {dev_hypotheses[0]} ({dev_labels[0]})"
+        )
         test_premises, test_hypotheses, test_labels = _get_data(
-            config.data_path + "/multinli_1.0_dev_mismatched.jsonl"
+            "data/" + config.dataset + "/test.jsonl"
         )
-        logging.info(f"First test example: {test_premises[0]} --> {test_hypotheses[0]} ({test_labels[0]})")
+        logging.info(
+            f"First test example: {test_premises[0]} --> {test_hypotheses[0]} ({test_labels[0]})"
+        )
     else:
         train_dataset = datasets.load_dataset(
             "snli", config.train_language, split="train"

@@ -11,13 +11,15 @@
 
 module purge
 module load pytorch/1.6
-export MODEL=${1}
+export DATASET=${1}
+export OPTIMIZER=${2}
+export METHOD=${3}
 
 srun python main.py \
-    --model $MODEL \
-    --learning_rate 2e-5 \
-    --batch_size 16 \
+    --model roberta \
+    --batch_size 32 \
     --epochs 5 \
     --gpu 0 \
-    --data_path data \
-    --output_path output/$MODEL
+    --method ${METHOD} \
+    --dataset ${DATASET} \
+    --output_path output/${DATASET}

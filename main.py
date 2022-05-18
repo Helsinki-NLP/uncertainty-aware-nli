@@ -8,6 +8,7 @@ import random
 import torch
 from tqdm import tqdm
 from transformers import AdamW
+from torch.optim import Adam, SGD
 from torch.optim.swa_utils import AveragedModel, SWALR
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import time
@@ -20,11 +21,25 @@ parser.add_argument("--test_language", type=str, default=None)
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--epochs", type=int, default=5)
 parser.add_argument("--log_every", type=int, default=100)
-parser.add_argument("--learning_rate", type=float, default=0.00005)
-parser.add_argument('--swa', action='store_true', help='swa usage flag (default: off)')
+parser.add_argument("--method", type=str, choices=["swa", "none"], default="")
 parser.add_argument("--gpu", type=int, default=None)
 parser.add_argument("--seed", type=int, default=1234)
-parser.add_argument("--output_path", type=str, default="output")
+parser.add_argument(
+    "--dataset",
+    type=str,
+    choices=[
+        "mnli-mm",
+        "mnli-m",
+        "snli",
+        "mnli-snli",
+        "snli-mnli-m",
+        "snli-mnli-mm",
+        "snli-sick",
+        "mnli-sick",
+    ],
+    default="mnli-mm",
+)
+parser.add_argument("--optimizer", type=str, default="AdamW")
 parser.add_argument(
     "--model",
     type=str,
@@ -101,26 +116,33 @@ def main():
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
 
-    optim = AdamW(model.parameters(), lr=config.learning_rate)
+    logging.info(f"Optimizer {config.optimizer}")
+    if config.optimizer == "Adam":
+        optim = Adam(model.parameters(), lr=0.00002)
+    elif config.optimizer == "SGD":
+        optim = SGD(model.parameters(), lr=0.1, momentum=0.9)
+    else:
+        optim = AdamW(model.parameters(), lr=0.00002)
+
     model.to(device)
 
-    if config.swa:
+    if config.method == "swa":
         logging.info("SWA training")
         swa_model = AveragedModel(model)
-        scheduler = CosineAnnealingLR(optim, T_max=10)
+        scheduler = CosineAnnealingLR(optim, T_max=5)
         swa_start = 1
-        swa_scheduler = SWALR(optim, swa_lr=0.00005)
-        config.output_path = f"{config.output_path}-swa"
+        swa_scheduler = SWALR(optim, swa_lr=0.05)
+        config.dataset = f"{config.dataset}-swa"
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = f"{config.output_path}-{timestr}"
+    output_dir = f"output/{config.dataset}/{timestr}"
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     start = time.time()
 
     for epoch in range(config.epochs):
         train(config, train_loader, model, optim, device, epoch)
 
-        if config.swa:
+        if config.method == "swa":
             if epoch > swa_start:
                 swa_model.update_parameters(model)
                 swa_scheduler.step()
@@ -136,10 +158,10 @@ def main():
         torch.save(model, snapshot_path)
 
     end = time.time()
-    hours, rem = divmod(end-start, 3600)
+    hours, rem = divmod(end - start, 3600)
     minutes, seconds = divmod(rem, 60)
 
-    if config.swa:
+    if config.method == "swa":
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds = evaluate(swa_model, test_loader, device)
     else:
@@ -147,24 +169,42 @@ def main():
 
     test_accuracy = (test_labels == test_preds).mean()
 
+    with open(
+        f"{output_dir}/predictions.tsv",
+        "w",
+    ) as predictions_file:
+        predictions_file.write(f"prediction\tlabel")
+        for pred, labl in zip(test_preds, test_labels):
+            predictions_file.write(f"{pred}\t{labl}")
+
     logging.info(f"=== SUMMARY ===")
     logging.info(f"Model: {model.__class__.__name__}")
-    logging.info(f"SWA: {config.swa}")
+    logging.info(f"Optimizer {config.optimizer}")
+    logging.info(f"Method: {config.method}")
     logging.info(f"Epochs: {config.epochs}")
     logging.info(f"Batch size: {config.batch_size}")
     logging.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
-    logging.info(f"Test accuracy: {test_accuracy}")        
+    logging.info(f"Test accuracy: {test_accuracy}")
 
     with open(
-        f"{output_dir}/{config.model}.results.txt",
+        f"{output_dir}/results.txt",
         "w",
     ) as resultfile:
+        resultfile.write(f"Dataset: {config.dataset}\n")
         resultfile.write(f"Model: {model.__class__.__name__}\n")
-        resultfile.write(f"SWA: {config.swa}\n")
+        resultfile.write(f"Optimizer {config.optimizer}\n")
+        resultfile.write(f"Method: {config.method}\n")
         resultfile.write(f"Epochs: {config.epochs}\n")
         resultfile.write(f"Batch size: {config.batch_size}\n")
-        resultfile.write(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\n")
-        resultfile.write(f"Test accuracy: {test_accuracy}")
+        resultfile.write(
+            f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\n"
+        )
+        resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
+
+    with open("output/result_summary.tsv", "a") as summary_results:
+        summary_results.write(
+            f"{config.dataset}\t{model.__class__.__name__}\t{config.optimizer}\t{config.method}\t{config.epochs}\t{config.batch_size}\t{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\t{test_accuracy}\n"
+        )
 
     final_snapshot_path = f"{output_dir}/{config.model}-mnli_final_snapshot_epochs_{config.epochs}_devacc_{round(dev_accuracy, 3)}.pt"
     torch.save(model, final_snapshot_path)
