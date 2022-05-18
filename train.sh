@@ -21,5 +21,4 @@ srun python main.py \
     --epochs 5 \
     --gpu 0 \
     --method ${METHOD} \
-    --dataset ${DATASET} \
-    --output_path output/${DATASET}
+    --dataset ${DATASET}

@@ -46,7 +46,6 @@ parser.add_argument(
     choices=["bert", "roberta"],
     default="roberta",
 )
-parser.add_argument("--data_path", type=str)
 
 logging.basicConfig(level=logging.INFO)
 
@@ -126,17 +125,18 @@ def main():
 
     model.to(device)
 
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    output_dir = f"output/{config.dataset}/{timestr}"
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
     if config.method == "swa":
         logging.info("SWA training")
         swa_model = AveragedModel(model)
         scheduler = CosineAnnealingLR(optim, T_max=5)
         swa_start = 1
         swa_scheduler = SWALR(optim, swa_lr=0.05)
-        config.dataset = f"{config.dataset}-swa"
+        output_dir = f"{output_dir}-swa"
 
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = f"output/{config.dataset}/{timestr}"
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
     start = time.time()
 
     for epoch in range(config.epochs):
