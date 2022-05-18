@@ -127,7 +127,6 @@ def main():
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
     output_dir = f"output/{config.dataset}/{timestr}"
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     if config.method == "swa":
         logging.info("SWA training")
@@ -136,6 +135,8 @@ def main():
         swa_start = 1
         swa_scheduler = SWALR(optim, swa_lr=0.05)
         output_dir = f"{output_dir}-swa"
+    
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     start = time.time()
 
