@@ -19,7 +19,8 @@ export METHOD=${3}
 srun python main.py \
     --model roberta \
     --batch_size 32 \
-    --epochs 5 \
+    --epochs 20 \
+    --early_stopping 3 \
     --optimizer ${OPTIMIZER} \
     --gpu 0 \
     --method ${METHOD} \
