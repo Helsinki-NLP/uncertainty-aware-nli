@@ -5,7 +5,7 @@
 #SBATCH -p gpu
 #SBATCH -n 1
 #SBATCH -t 72:00:00
-#SBATCH --gres=gpu:p100:1
+#SBATCH --gres=gpu:v100:1
 #SBATCH --account=project_2001194
 # run command
 
