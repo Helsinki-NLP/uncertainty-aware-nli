@@ -46,6 +46,8 @@ cp snli_1.0/snli_1.0_test.jsonl mnli-snli/test.jsonl
 
 python3 ../prepare_sick_data.py
 
+sed -i '/^$/d' sick.jsonl
+
 cp multinli_1.0/multinli_1.0_train.jsonl mnli-sick/train.jsonl
 cp multinli_1.0/multinli_1.0_dev_mismatched.jsonl mnli-sick/dev.jsonl
 cp sick.jsonl mnli-sick/test.jsonl
