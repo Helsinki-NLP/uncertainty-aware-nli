@@ -133,9 +133,9 @@ def main():
     if config.method == "swa":
         logging.info("SWA training")
         swa_model = AveragedModel(model)
-        scheduler = CosineAnnealingLR(optim, T_max=5)
+        scheduler = CosineAnnealingLR(optim, T_max=20)
         swa_start = 1
-        swa_scheduler = SWALR(optim, swa_lr=0.05)
+        swa_scheduler = SWALR(optim, swa_lr=0.00002)
         output_dir = f"{output_dir}-swa"
     
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -160,6 +160,7 @@ def main():
 
         dev_accuracy = (dev_labels == dev_preds).mean()
 
+        logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
         logging.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
         logging.info(f"Previous best: {best_loss:<.4f}")
 
