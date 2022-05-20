@@ -22,7 +22,7 @@ parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--early_stopping", type=int, default=3)
 parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--log_every", type=int, default=100)
-parser.add_argument("--method", type=str, choices=["swa", "none"], default="")
+parser.add_argument("--method", type=str, choices=["swa", "no-avg"], default="swa")
 parser.add_argument("--gpu", type=int, default=None)
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument(
@@ -121,7 +121,7 @@ def main():
     if config.optimizer == "Adam":
         optim = Adam(model.parameters(), lr=0.00002)
     elif config.optimizer == "SGD":
-        optim = SGD(model.parameters(), lr=0.1, momentum=0.9)
+        optim = SGD(model.parameters(), lr=0.01, momentum=0.9)
     else:
         optim = AdamW(model.parameters(), lr=0.00002)
 

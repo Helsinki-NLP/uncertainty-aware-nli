@@ -42,7 +42,7 @@ cp multinli_1.0/multinli_1.0_dev_mismatched.jsonl snli-mnli-mm/test.jsonl
 
 cp multinli_1.0/multinli_1.0_train.jsonl mnli-snli/train.jsonl
 cp multinli_1.0/multinli_1.0_dev_mismatched.jsonl mnli-snli/dev.jsonl
-cp snli_1.0/snli_1.0_test.jsonl snli-mnli-m/test.jsonl
+cp snli_1.0/snli_1.0_test.jsonl mnli-snli/test.jsonl
 
 python3 ../prepare_sick_data.py
 
