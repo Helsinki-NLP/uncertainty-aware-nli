@@ -38,6 +38,8 @@ class NLIDataset(torch.utils.data.Dataset):
 def get_nli_dataset(config, tokenizer):
 
     if config.dataset:
+        logging.info(f"Experiment dataset: {config.dataset}")
+        
         train_premises, train_hypotheses, train_labels = _get_data(
             "data/" + config.dataset + "/train.jsonl"
         )
