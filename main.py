@@ -37,8 +37,7 @@ parser.add_argument(
         "snli-mnli-mm",
         "snli-sick",
         "mnli-sick",
-    ],
-    default="mnli-mm",
+    ]
 )
 parser.add_argument("--optimizer", type=str, default="AdamW")
 parser.add_argument(
