@@ -134,7 +134,7 @@ def main():
         swa_model = AveragedModel(model)
         scheduler = CosineAnnealingLR(optim, T_max=20)
         swa_start = 1
-        swa_scheduler = SWALR(optim, swa_lr=0.00002)
+        swa_scheduler = SWALR(optim, swa_lr=0.05)
         output_dir = f"{output_dir}-swa"
     elif config.method == "swag":
         # initialize SWAG
