@@ -184,7 +184,7 @@ def main():
 
     if config.method == "swa":
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
-        test_labels, test_preds = evaluate(swa_model, test_loader, device)
+        test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
 
@@ -222,7 +222,7 @@ def main():
         )
         resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
 
-    with open("output/result_summary.tsv", "a") as summary_results:
+    with open("output/result_summary_{timestr}.tsv", "a") as summary_results:
         summary_results.write(
             f"{config.dataset}\t{model.__class__.__name__}\t{config.optimizer}\t{config.method}\t{stopped_after}\t{config.batch_size}\t{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\t{test_accuracy}\n"
         )
