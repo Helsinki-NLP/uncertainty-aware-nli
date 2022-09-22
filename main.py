@@ -22,7 +22,7 @@ parser.add_argument("--batch_size", type=int, default=32)
 parser.add_argument("--early_stopping", type=int, default=3)
 parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--log_every", type=int, default=100)
-parser.add_argument("--method", type=str, choices=["swa", "no-avg"], default="swa")
+parser.add_argument("--method", type=str, choices=["swa", "swag", "no-avg"], default="no-swa")
 parser.add_argument("--gpu", type=int, default=None)
 parser.add_argument("--seed", type=int, default=1234)
 parser.add_argument(
@@ -137,7 +137,9 @@ def main():
         swa_start = 1
         swa_scheduler = SWALR(optim, swa_lr=0.00002)
         output_dir = f"{output_dir}-swa"
-    
+    elif config.method == "swag":
+        # initialize SWAG
+        pass
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     start = time.time()
@@ -155,7 +157,10 @@ def main():
                 swa_scheduler.step()
             else:
                 scheduler.step()
-
+        elif config.method == "swag":
+            # implement for SWAG
+            # swagmodel.collect_model
+            pass
         dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
 
         dev_accuracy = (dev_labels == dev_preds).mean()
@@ -185,6 +190,10 @@ def main():
     if config.method == "swa":
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
+    elif config.method == "swag":
+        # implement for SWAG
+        # add the same as above and swagmodel.sample or in eval at each epoch ???
+        pass
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
 
@@ -222,9 +231,9 @@ def main():
         )
         resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
 
-    with open("output/result_summary_{timestr}.tsv", "a") as summary_results:
+    with open("output/result_summary_{timestr}.csv", "a") as summary_results:
         summary_results.write(
-            f"{config.dataset}\t{model.__class__.__name__}\t{config.optimizer}\t{config.method}\t{stopped_after}\t{config.batch_size}\t{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}\t{test_accuracy}\n"
+            f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
 
     final_snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_final_snapshot_epochs_{stopped_after}_devacc_{round(dev_accuracy, 3)}.pt"
