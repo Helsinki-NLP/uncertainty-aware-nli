@@ -230,7 +230,7 @@ def main():
         )
         resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
 
-    with open("output/result_summary_{timestr}.csv", "a") as summary_results:
+    with open(f"output/result_summary.csv", "a") as summary_results:
         summary_results.write(
             f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
