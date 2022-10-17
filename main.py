@@ -13,6 +13,8 @@ from torch.optim.swa_utils import AveragedModel, SWALR
 from torch.optim.lr_scheduler import CosineAnnealingLR
 import time
 
+import swag_utils
+from swa_gaussian.swag.posteriors.swag import SWAG
 
 parser = ArgumentParser(description="NLI with Transformers")
 
@@ -46,6 +48,20 @@ parser.add_argument(
     choices=["bert", "roberta"],
     default="roberta",
 )
+
+#+++HANDE
+parser.add_argument("--swa_start", type=int, default=1)
+parser.add_argument("--num_labels", type=int, default=3)
+parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
+
+parser.add_argument(
+    "--max_num_models",
+    type=int,
+    default=20,
+    help="maximum number of SWAG models to save",
+)
+
+#---HANDE
 
 logging.basicConfig(level=logging.INFO)
 
@@ -104,19 +120,46 @@ def main():
     torch.manual_seed(config.seed)
     random.seed(config.seed)
 
-    device = (
-        torch.device(f"cuda:{config.gpu}")
-        if torch.cuda.is_available()
-        else torch.device("cpu")
-    )
+    #+++HANDE
+    if config.cov_mat:
+        config.no_cov_mat = False
+    else:
+        config.no_cov_mat = True
+    
+    if torch.cuda.is_available():
+        device = torch.device(f"cuda:{config.gpu}")
+        use_cuda = True
+
+    else:
+        device = torch.device("cpu")
+        use_cuda = False
+
+    #---HANDE
+
 
     logging.info(f"Training on {device}.")
 
-    tokenizer, model = models.get_model(config)
+
+    timestr = time.strftime("%Y%m%d-%H%M%S")
+    output_dir = f"output/{config.dataset}/{timestr}"
+
+    #+++HANDE
+    if config.method in ["no-avg", "swa"]:
+        tokenizer, model = models.get_model(config)
+
+    elif config.method == "swag":
+        model_specs = models.get_model_specs(config.model)
+        model = models.LangModel(num_labels=config.num_labels,
+            model_cls=model_specs['model_cls'],
+            model_subtype=model_specs['model_subtype'],
+            tokenizer_cls=model_specs['tokenizer_cls'],
+            tokenizer_subtype=model_specs['tokenizer_subtype'])
+        tokenizer = model.get_tokenizer()
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
-
+    
     logging.info(f"Optimizer {config.optimizer}")
+
     if config.optimizer == "Adam":
         optim = Adam(model.parameters(), lr=0.00002)
     elif config.optimizer == "SGD":
@@ -125,20 +168,38 @@ def main():
         optim = AdamW(model.parameters(), lr=0.00002)
 
     model.to(device)
+    
 
-    timestr = time.strftime("%Y%m%d-%H%M%S")
-    output_dir = f"output/{config.dataset}/{timestr}"
+    #---HANDE
 
     if config.method == "swa":
         logging.info("SWA training")
         swa_model = AveragedModel(model)
-        scheduler = CosineAnnealingLR(optim, T_max=20)
-        swa_start = 1
         swa_scheduler = SWALR(optim, swa_lr=0.05)
-        output_dir = f"{output_dir}-swa"
+ 
+    #+++HANDE
     elif config.method == "swag":
         # initialize SWAG
+        logging.info("SWAG training")
+        model_specs = models.get_model_specs(config.model)
+        swag_model = SWAG(
+            models.LangModel,
+            no_cov_mat=config.no_cov_mat,
+            max_num_models=config.max_num_models,
+            num_labels=config.num_labels, 
+            model_cls=model_specs['model_cls'],
+            model_subtype=model_specs['model_subtype'],
+            tokenizer_cls=model_specs['tokenizer_cls'],
+            tokenizer_subtype=model_specs['tokenizer_subtype']
+        )
+        swag_model.to(device) 
+
+    else: #config.method == "no-avg"
+        # raise not implemented error
         pass
+
+    output_dir = f"{output_dir}-{config.method}"
+    #---HANDE
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     start = time.time()
@@ -147,22 +208,47 @@ def main():
     best_loss = 999
     stopped_after = config.early_stopping
 
+    
     for epoch in range(config.epochs):
-        train(config, train_loader, model, optim, device, epoch)
+        logging.info(f"Epoch {epoch}")
 
         if config.method == "swa":
+            train(config, train_loader, model, optim, device, epoch)
             if epoch > swa_start:
                 swa_model.update_parameters(model)
                 swa_scheduler.step()
             else:
                 scheduler.step()
-        elif config.method == "swag":
-            # implement for SWAG
-            # swagmodel.collect_model
-            pass
-        dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
 
-        dev_accuracy = (dev_labels == dev_preds).mean()
+        #+++HANDE
+        elif config.method == "swag":
+            swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda)
+            if epoch > swa_start:
+                swag_model.collect_model(model)
+                if (
+                    epoch == 0
+                    or epoch % args.eval_freq == args.eval_freq - 1
+                    or epoch == args.epochs - 1
+                ):
+                    swag_model.sample(0.0)
+                    swag_utils.bn_update(train_loader, swag_model)
+                    swag_res = utils.eval(dev_loader, swag_model)
+                else:
+                    swag_res = {"loss": None, "accuracy": None}
+
+            else:
+                #scheduler.step()
+                pass
+
+        if config.method == "swa":
+            dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
+            dev_accuracy = (dev_labels == dev_preds).mean()
+        elif config.method == "swag":
+            dev_res = utils.eval(dev_loader, model, cuda=use_cuda)
+            dev_loss = dev_res["loss"]
+            dev_accuracy = dev_res["accuracy"]
+
+        #---HANDE    
 
         logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
         logging.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
@@ -189,14 +275,18 @@ def main():
     if config.method == "swa":
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
+        test_accuracy = (test_labels == test_preds).mean()
+    #+++HANDE
     elif config.method == "swag":
-        # implement for SWAG
-        # add the same as above and swagmodel.sample or in eval at each epoch ???
-        pass
+        swag_utils.bn_update(train_loader, swag_model)
+        test_res = utils.eval(test_loader, model, cuda=use_cuda)
+        test_loss = test_res["loss"]
+        test_accuracy = test_res["accuracy"]
+    #---HANDE
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
+        test_accuracy = (test_labels == test_preds).mean()
 
-    test_accuracy = (test_labels == test_preds).mean()
 
     with open(
         f"{output_dir}/predictions.tsv",
