@@ -61,19 +61,19 @@ def get_nli_dataset(config, tokenizer):
     else:
         train_dataset = datasets.load_dataset(
             "snli", config.train_language, split="train"
-        ) # add filtering
+        ).filter(lambda sample: sample['label'] >= 0)
         train_premises = train_dataset["premise"]
         train_hypotheses = train_dataset["hypothesis"]
         train_labels = train_dataset["label"]
 
         dev_dataset = datasets.load_dataset(
             "snli", config.test_language, split="validation"
-        ) # add filtering
+        ).filter(lambda sample: sample['label'] >= 0)
         dev_premises = dev_dataset["premise"]
         dev_hypotheses = dev_dataset["hypothesis"]
         dev_labels = dev_dataset["label"]
 
-        test_dataset = datasets.load_dataset("snli", config.test_language, split="test") # add filtering
+        test_dataset = datasets.load_dataset("snli", config.test_language, split="test").filter(lambda sample: sample['label'] >= 0)
         test_premises = test_dataset["premise"]
         test_hypotheses = test_dataset["hypothesis"]
         test_labels = test_dataset["label"]
