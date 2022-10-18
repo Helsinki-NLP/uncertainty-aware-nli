@@ -214,7 +214,7 @@ def main():
 
         if config.method == "swa":
             train(config, train_loader, model, optim, device, epoch)
-            if epoch > swa_start:
+            if epoch > config.swa_start:
                 swa_model.update_parameters(model)
                 swa_scheduler.step()
             else:
@@ -223,7 +223,7 @@ def main():
         #+++HANDE
         elif config.method == "swag":
             swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda)
-            if epoch > swa_start:
+            if epoch > config.swa_start:
                 swag_model.collect_model(model)
                 if (
                     epoch == 0
