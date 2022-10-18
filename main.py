@@ -279,7 +279,7 @@ def main():
     #+++HANDE
     elif config.method == "swag":
         swag_utils.bn_update(train_loader, swag_model)
-        test_res = utils.eval(test_loader, model, cuda=use_cuda)
+        test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
         test_loss = test_res["loss"]
         test_accuracy = test_res["accuracy"]
     #---HANDE
