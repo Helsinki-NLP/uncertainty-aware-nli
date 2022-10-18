@@ -227,12 +227,12 @@ def main():
                 swag_model.collect_model(model)
                 if (
                     epoch == 0
-                    or epoch % args.eval_freq == args.eval_freq - 1
-                    or epoch == args.epochs - 1
+                    #or epoch % args.eval_freq == args.eval_freq - 1
+                    or epoch == config.epochs - 1
                 ):
                     swag_model.sample(0.0)
                     swag_utils.bn_update(train_loader, swag_model)
-                    swag_res = utils.eval(dev_loader, swag_model)
+                    swag_res = swag_utils.eval(dev_loader, swag_model)
                 else:
                     swag_res = {"loss": None, "accuracy": None}
 
