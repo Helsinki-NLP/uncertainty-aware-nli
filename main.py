@@ -244,7 +244,7 @@ def main():
             dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
             dev_accuracy = (dev_labels == dev_preds).mean()
         elif config.method == "swag":
-            dev_res = utils.eval(dev_loader, model, cuda=use_cuda)
+            dev_res = swag_utils.eval(dev_loader, model, cuda=use_cuda)
             dev_loss = dev_res["loss"]
             dev_accuracy = dev_res["accuracy"]
 
