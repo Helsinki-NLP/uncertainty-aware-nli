@@ -247,9 +247,8 @@ def main():
             dev_accuracy = (dev_labels == dev_preds).mean()
 
         elif config.method == "swag":
-            dev_res = swag_utils.eval(dev_loader, model, cuda=use_cuda)
-            dev_loss = dev_res["loss"]
-            dev_accuracy = dev_res["accuracy"]
+            dev_loss = swag_res["loss"]
+            dev_accuracy = swag_res["accuracy"]
 
         #---HANDE    
 
@@ -281,13 +280,13 @@ def main():
         test_accuracy = (test_labels == test_preds).mean()
     #+++HANDE
     elif config.method == "swag":
-        swag_utils.bn_update(train_loader, swag_model)
+        # swag_utils.bn_update(train_loader, swag_model)
         # test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
-        predictions = swag_utils.predict(test_loader, model, cuda=use_cuda, verbose=True)
+        predictions = swag_utils.predict(test_loader, swag_model, cuda=use_cuda, verbose=True)
         # test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
         test_preds = predictions["predictions"]
         test_labels = predictions["targets"]
-        swag_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
+        swag_res = swag_utils.eval(test_loader, swag_model)
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
 
