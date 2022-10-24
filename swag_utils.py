@@ -100,7 +100,7 @@ def eval(loader, model, cuda=True, regression=False, verbose=False):
     }
 
 
-def predict(loader, model, verbose=False):
+def predict(loader, model, cuda=True, verbose=False):
     predictions = list()
     targets = list()
 
@@ -120,7 +120,7 @@ def predict(loader, model, verbose=False):
 
             batch_size = batch['input_ids'].size(0)
             predictions.append(F.softmax(outputs.logits, dim=1).cpu().numpy())
-            targets.append(batch['labels'].numpy())
+            targets.append(batch['labels'].cpu().numpy())
             offset += batch_size
 
-    return {"predictions": np.vstack(predictions), "targets": np.concatenate(targets)}
+    return {"predictions": np.concatenate(predictions), "targets": np.concatenate(targets)}
