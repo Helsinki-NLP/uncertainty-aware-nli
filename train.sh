@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH -J SWA-NLI
+#SBATCH -J SWAG-NLI
 #SBATCH -o out_%J.txt
 #SBATCH -e err_%J.txt
 #SBATCH -p gpu

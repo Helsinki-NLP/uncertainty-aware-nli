@@ -222,7 +222,8 @@ def main():
 
         #+++HANDE
         elif config.method == "swag":
-            swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda)
+            # train(config, train_loader, model, optim, device, epoch)
+            swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda, verbose=True)
             if epoch > config.swa_start:
                 swag_model.collect_model(model)
                 if (
@@ -233,6 +234,7 @@ def main():
                     swag_model.sample(0.0)
                     swag_utils.bn_update(train_loader, swag_model)
                     swag_res = swag_utils.eval(dev_loader, swag_model)
+                    #dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
                 else:
                     swag_res = {"loss": None, "accuracy": None}
 
@@ -243,6 +245,7 @@ def main():
         if config.method == "swa":
             dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
             dev_accuracy = (dev_labels == dev_preds).mean()
+
         elif config.method == "swag":
             dev_res = swag_utils.eval(dev_loader, model, cuda=use_cuda)
             dev_loss = dev_res["loss"]
@@ -279,22 +282,20 @@ def main():
     #+++HANDE
     elif config.method == "swag":
         swag_utils.bn_update(train_loader, swag_model)
-        test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
-        test_loss = test_res["loss"]
-        test_accuracy = test_res["accuracy"]
+        # test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
+        predictions = swag_utils.predict(test_loader, model, cuda=use_cuda, verbose=True)
+        # test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
+        test_preds = predictions["predictions"]
+        test_labels = predictions["targets"]
+        swag_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
+        test_accuracy = swag_res["accuracy"]
+        test_loss = swag_res["loss"]
+
     #---HANDE
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
 
-
-    with open(
-        f"{output_dir}/predictions.tsv",
-        "w",
-    ) as predictions_file:
-        predictions_file.write(f"prediction\tlabel")
-        for pred, labl in zip(test_preds, test_labels):
-            predictions_file.write(f"{pred}\t{labl}")
 
     logging.info(f"=== SUMMARY ===")
     logging.info(f"Model: {model.__class__.__name__}")
@@ -324,6 +325,14 @@ def main():
         summary_results.write(
             f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
+
+    with open(
+        f"{output_dir}/predictions.tsv",
+        "w",
+    ) as predictions_file:
+        predictions_file.write(f"prediction\tlabel")
+        for pred, labl in zip(test_preds, test_labels):
+            predictions_file.write(f"{pred}\t{labl}")
 
     final_snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_final_snapshot_epochs_{stopped_after}_devacc_{round(dev_accuracy, 3)}.pt"
     torch.save(model, final_snapshot_path)
