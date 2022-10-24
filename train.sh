@@ -11,7 +11,7 @@
 # run command
 
 module purge
-module load pytorch/1.11
+module load pytorch/1.12
 export DATASET=${1}
 export OPTIMIZER=${2}
 export METHOD=${3}

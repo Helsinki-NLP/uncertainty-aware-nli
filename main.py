@@ -50,7 +50,7 @@ parser.add_argument(
 )
 
 #+++HANDE
-parser.add_argument("--swa_start", type=int, default=1)
+parser.add_argument("--swa_start", type=int, default=0)
 parser.add_argument("--num_labels", type=int, default=3)
 parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
 
@@ -144,17 +144,17 @@ def main():
     output_dir = f"output/{config.dataset}/{timestr}"
 
     #+++HANDE
-    if config.method in ["no-avg", "swa"]:
-        tokenizer, model = models.get_model(config)
+    # if config.method in ["no-avg", "swa"]:
+    tokenizer, model = models.get_model(config)
 
-    elif config.method == "swag":
-        model_specs = models.get_model_specs(config.model)
-        model = models.LangModel(num_labels=config.num_labels,
-            model_cls=model_specs['model_cls'],
-            model_subtype=model_specs['model_subtype'],
-            tokenizer_cls=model_specs['tokenizer_cls'],
-            tokenizer_subtype=model_specs['tokenizer_subtype'])
-        tokenizer = model.get_tokenizer()
+    #elif config.method == "swag":
+    #    model_specs = models.get_model_specs(config.model)
+    #    model = models.LangModel(num_labels=config.num_labels,
+    #        model_cls=model_specs['model_cls'],
+    #        model_subtype=model_specs['model_subtype'],
+    #        tokenizer_cls=model_specs['tokenizer_cls'],
+    #        tokenizer_subtype=model_specs['tokenizer_subtype'])
+     #   tokenizer = model.get_tokenizer()
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
     
@@ -234,13 +234,17 @@ def main():
                     swag_model.sample(0.0)
                     swag_utils.bn_update(train_loader, swag_model)
                     swag_res = swag_utils.eval(dev_loader, swag_model)
+                    logging.info("SWAG eval 1")
                     #dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
                 else:
-                    swag_res = {"loss": None, "accuracy": None}
+                    # swag_res = {"loss": None, "accuracy": None}
+                    swag_res = swag_utils.eval(dev_loader, model)
+                    logging.info("SWAG eval 2")
 
             else:
                 #scheduler.step()
-                pass
+                swag_res = swag_utils.eval(dev_loader, model)
+                logging.info("eval 1")
 
         if config.method == "swa":
             dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
@@ -280,12 +284,12 @@ def main():
         test_accuracy = (test_labels == test_preds).mean()
     #+++HANDE
     elif config.method == "swag":
-        # swag_utils.bn_update(train_loader, swag_model)
+        swag_utils.bn_update(train_loader, swag_model)
         # test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
-        predictions = swag_utils.predict(test_loader, swag_model, cuda=use_cuda, verbose=True)
+        #predictions = swag_utils.predict(test_loader, swag_model, cuda=use_cuda, verbose=True)
         # test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
-        test_preds = predictions["predictions"]
-        test_labels = predictions["targets"]
+        #test_preds = predictions["predictions"]
+        #test_labels = predictions["targets"]
         swag_res = swag_utils.eval(test_loader, swag_model)
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
@@ -325,13 +329,13 @@ def main():
             f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
 
-    with open(
-        f"{output_dir}/predictions.tsv",
-        "w",
-    ) as predictions_file:
-        predictions_file.write(f"prediction\tlabel")
-        for pred, labl in zip(test_preds, test_labels):
-            predictions_file.write(f"{pred}\t{labl}")
+    #with open(
+    #    f"{output_dir}/predictions.tsv",
+    #    "w",
+    #) as predictions_file:
+    #    predictions_file.write(f"prediction\tlabel")
+    #    for pred, labl in zip(test_preds, test_labels):
+    #        predictions_file.write(f"{pred}\t{labl}")
 
     final_snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_final_snapshot_epochs_{stopped_after}_devacc_{round(dev_accuracy, 3)}.pt"
     torch.save(model, final_snapshot_path)
