@@ -14,9 +14,9 @@ def _get_data(file_path: str):
     dataset["gold_label"].replace(to_replace="neutral", value=1, inplace=True)
     dataset["gold_label"].replace(to_replace="contradiction", value=2, inplace=True)
     return (
-        dataset["sentence1"].tolist(),
-        dataset["sentence2"].tolist(),
-        dataset["gold_label"].tolist(),
+            dataset["sentence1"].tolist(),
+            dataset["sentence2"].tolist(),
+            dataset["gold_label"].tolist(),
     )
 
 
