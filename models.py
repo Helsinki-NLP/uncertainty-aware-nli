@@ -4,6 +4,8 @@ from transformers import (
     BertForSequenceClassification,
     RobertaTokenizer,
     RobertaForSequenceClassification,
+    DebertaV2Tokenizer,
+    DebertaV2ForSequenceClassification
 )
 
 #+++HANDE
@@ -11,6 +13,8 @@ from transformers import (
 MODEL_SPECS = {
     'bert': {'model_cls': BertForSequenceClassification, 'tokenizer_cls': BertTokenizer, 
             'model_subtype': 'bert-base-multilingual-cased', 'tokenizer_subtype': 'bert-base-cased'},
+    'deberta_v2': {'model_cls': DebertaV2ForSequenceClassification,  'tokenizer_cls': DebertaV2Tokenizer,
+               'model_subtype': 'microsoft/deberta-v2-xlarge', 'tokenizer_subtype': 'microsoft/deberta-v2-xlarge'}, 
     'roberta': {'model_cls': RobertaForSequenceClassification,  'tokenizer_cls': RobertaTokenizer, 
                'model_subtype': 'roberta-base', 'tokenizer_subtype': 'roberta-base'}
 }
@@ -23,6 +27,9 @@ def get_model(config):
         model = BertForSequenceClassification.from_pretrained(
             "bert-base-multilingual-cased", num_labels=3
         )
+    elif config.model == "deberta_v2":
+        tokenizer = DebertaV2Tokenizer.from_pretrained("microsoft/deberta-v2-xlarge") # hf-internal-testing/tiny-random-deberta-v2")
+        model = DebertaV2ForSequenceClassification.from_pretrained("microsoft/deberta-v2-xlarge", num_labels=3) # "hf-internal-testing/tiny-random-deberta-v2")
     else:
         tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
         model = RobertaForSequenceClassification.from_pretrained(

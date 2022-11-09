@@ -45,12 +45,12 @@ parser.add_argument("--optimizer", type=str, default="AdamW")
 parser.add_argument(
     "--model",
     type=str,
-    choices=["bert", "roberta"],
+    choices=["bert", "deberta_v2", "roberta"],
     default="roberta",
 )
 
 #+++HANDE
-parser.add_argument("--swa_start", type=int, default=0)
+parser.add_argument("--swa_start", type=int, default=1)
 parser.add_argument("--num_labels", type=int, default=3)
 parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
 
@@ -144,17 +144,17 @@ def main():
     output_dir = f"output/{config.dataset}/{timestr}"
 
     #+++HANDE
-    # if config.method in ["no-avg", "swa"]:
-    tokenizer, model = models.get_model(config)
+    if config.method in ["no-avg", "swa"]:
+        tokenizer, model = models.get_model(config)
 
-    #elif config.method == "swag":
-    #    model_specs = models.get_model_specs(config.model)
-    #    model = models.LangModel(num_labels=config.num_labels,
-    #        model_cls=model_specs['model_cls'],
-    #        model_subtype=model_specs['model_subtype'],
-    #        tokenizer_cls=model_specs['tokenizer_cls'],
-    #        tokenizer_subtype=model_specs['tokenizer_subtype'])
-     #   tokenizer = model.get_tokenizer()
+    elif config.method == "swag":
+        model_specs = models.get_model_specs(config.model)
+        model = models.LangModel(num_labels=config.num_labels,
+            model_cls=model_specs['model_cls'],
+            model_subtype=model_specs['model_subtype'],
+            tokenizer_cls=model_specs['tokenizer_cls'],
+            tokenizer_subtype=model_specs['tokenizer_subtype'])
+        tokenizer = model.get_tokenizer()
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
     
@@ -284,6 +284,7 @@ def main():
         test_accuracy = (test_labels == test_preds).mean()
     #+++HANDE
     elif config.method == "swag":
+        swag_model.sample(0.0)
         swag_utils.bn_update(train_loader, swag_model)
         # test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
         #predictions = swag_utils.predict(test_loader, swag_model, cuda=use_cuda, verbose=True)
@@ -324,7 +325,7 @@ def main():
         )
         resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
 
-    with open(f"output/result_summary.csv", "a") as summary_results:
+    with open(f"output/result_summary{config.seed}.csv", "a") as summary_results:
         summary_results.write(
             f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
