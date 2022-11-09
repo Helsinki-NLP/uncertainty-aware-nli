@@ -14,7 +14,7 @@ module purge
 module load pytorch/1.12
 export DATASET=${1}
 export OPTIMIZER=${2}
-export METHOD=${3}
+export SEED=${3}
 
 srun python main.py \
     --model roberta \
@@ -23,5 +23,6 @@ srun python main.py \
     --early_stopping 3 \
     --optimizer ${OPTIMIZER} \
     --gpu 0 \
-    --method ${METHOD} \
+    --seed ${SEED} \
+    --method swag \
     --dataset ${DATASET}
