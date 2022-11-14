@@ -71,32 +71,49 @@ def train_epoch(
     }
 
 
-def eval(loader, model, cuda=True, regression=False, verbose=False):
-    loss_sum = 0.0
-    correct = 0.0
-    num_objects_total = len(loader.dataset)
+def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
+    swag_predictions = np.zeros((len(test_loader.dataset), num_classes))
+    for i in range(num_samples):
+        swag_model.sample(scale, cov=is_cov_mat)   #and (not args.use_diag_bma))
 
-    model.eval()
+        #print("SWAG Sample %d/%d. BN update" % (i + 1, num_samples))
+        #utils.bn_update(train_loader, swag_model, verbose=True, subset=0.1)
+        print("SWAG Sample %d/%d. EVAL" % (i + 1, num_samples))
+        res = predict(test_loader, swag_model, verbose=True)
+        predictions = res["predictions"]
 
-    with torch.no_grad():
-        if verbose:
-            loader = tqdm.tqdm(loader)
-        for i, batch in enumerate(loader):
-            if cuda:
-                for key in batch.keys():
-                    batch[key] = batch[key].cuda()
-            outputs = model(**batch)
-            loss = outputs.loss
-    
-            loss_sum += loss.data.item() * batch['input_ids'].size(0)
-            if not regression:
-                pred = outputs.logits.argmax(1, keepdim=True)
-                correct += pred.eq(batch['labels'].view_as(pred)).sum().item()
+        accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
+        nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + eps))
+        print(
+            "SWAG Sample %d/%d. Accuracy: %.2f%% NLL: %.4f"
+            % (i + 1, num_samples, accuracy * 100, nll)
+        )
 
+        swag_predictions += predictions
+
+        ens_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
+        ens_nll = -np.mean(
+            np.log(
+                swag_predictions[np.arange(swag_predictions.shape[0]), targets] / (i + 1)
+                + eps
+            )
+        )
+        print(
+            "Ensemble %d/%d. Accuracy: %.2f%% NLL: %.4f"
+            % (i + 1, num_samples, ens_accuracy * 100, ens_nll)
+        )
+
+    swag_predictions /= num_samples
+
+    swag_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
+    swag_nll = -np.mean(
+        np.log(swag_predictions[np.arange(swag_predictions.shape[0]), targets] + eps)
+    )
+    swag_entropies = -np.sum(np.log(swag_predictions + eps) * swag_predictions, axis=1)
 
     return {
-        "loss": loss_sum / num_objects_total,
-        "accuracy": None if regression else correct / num_objects_total * 100.0,
+        "loss": swag_nll,
+        "accuracy": swag_accuracy * 100,
     }
 
 
