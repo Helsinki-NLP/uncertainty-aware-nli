@@ -53,12 +53,21 @@ parser.add_argument(
 parser.add_argument("--swa_start", type=int, default=1)
 parser.add_argument("--num_labels", type=int, default=3)
 parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
+parser.add_argument("--scale", type=float, default=1.0, help="SWAG scale")
 
 parser.add_argument(
     "--max_num_models",
     type=int,
     default=20,
-    help="maximum number of SWAG models to save",
+    help="maximum number of SWAG models to save (default: 20)",
+)
+
+parser.add_argument(
+    "--num_samples",
+    type=int,
+    default=100,
+    metavar="N",
+    help="number of samples for SWAG (default: 100)",
 )
 
 #---HANDE
@@ -226,31 +235,39 @@ def main():
             swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda, verbose=True)
             if epoch > config.swa_start:
                 swag_model.collect_model(model)
-                if (
-                    epoch == 0
-                    #or epoch % args.eval_freq == args.eval_freq - 1
-                    or epoch == config.epochs - 1
-                ):
-                    swag_model.sample(0.0)
-                    swag_utils.bn_update(train_loader, swag_model)
-                    swag_res = swag_utils.eval(dev_loader, swag_model)
-                    logging.info("SWAG eval 1")
-                    #dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
-                else:
-                    # swag_res = {"loss": None, "accuracy": None}
-                    swag_res = swag_utils.eval(dev_loader, model)
-                    logging.info("SWAG eval 2")
+                
+                #Moved below:
+                #if (
+                #    epoch == 0
+                #    #or epoch % args.eval_freq == args.eval_freq - 1
+                #    or epoch == config.epochs - 1
+                #):
+                #    swag_model.sample(0.0)
+                #    swag_utils.bn_update(train_loader, swag_model)
+                #    swag_res = swag_utils.eval(dev_loader, swag_model)
+                #    logging.info("SWAG eval 1")
+                #    #dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
+                #else:
+                #    # swag_res = {"loss": None, "accuracy": None}
+                #    swag_res = swag_utils.eval(dev_loader, model)
+                #    logging.info("SWAG eval 2")
 
-            else:
-                #scheduler.step()
-                swag_res = swag_utils.eval(dev_loader, model)
-                logging.info("eval 1")
+            #else:
+            #    #scheduler.step()
+            #    swag_res = swag_utils.eval(dev_loader, model)
+            #    logging.info("eval 1")
 
+
+
+        # Evaluating dev performance for early-stopping:        
         if config.method == "swa":
             dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
             dev_accuracy = (dev_labels == dev_preds).mean()
 
         elif config.method == "swag":
+            swag_utils.bn_update(train_loader, swag_model)
+            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.is_cov_mat, config.scale)
+
             dev_loss = swag_res["loss"]
             dev_accuracy = swag_res["accuracy"]
 
@@ -282,20 +299,22 @@ def main():
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
-    #+++HANDE
+    
+
+
+
+    #SWAG test evaluation
     elif config.method == "swag":
-        swag_model.sample(0.0)
-        swag_utils.bn_update(train_loader, swag_model)
-        # test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
-        #predictions = swag_utils.predict(test_loader, swag_model, cuda=use_cuda, verbose=True)
-        # test_res = swag_utils.eval(test_loader, model, cuda=use_cuda)
-        #test_preds = predictions["predictions"]
-        #test_labels = predictions["targets"]
-        swag_res = swag_utils.eval(test_loader, swag_model)
+        #swag_model.sample(0.0)
+        #swag_utils.bn_update(train_loader, swag_model)
+
+        swag_res = swag_utils.eval(test_loader, swag_model, config.num_samples, config.cov_mat, config.scale)
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
 
-    #---HANDE
+    
+
+
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
