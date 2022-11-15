@@ -65,6 +65,8 @@ def train_epoch(
             )
             verb_stage += 1
 
+        break #DEBUG
+
     return {
         "loss": loss_sum / num_objects_current,
         "accuracy": None if regression else correct / num_objects_current * 100.0,
@@ -72,7 +74,8 @@ def train_epoch(
 
 
 def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
-    swag_predictions = np.zeros((len(test_loader.dataset), num_classes))
+    print('num classes: ', len(set(test_loader.dataset.labels)))
+    swag_predictions = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     for i in range(num_samples):
         swag_model.sample(scale, cov=is_cov_mat)   #and (not args.use_diag_bma))
 
@@ -81,6 +84,7 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
         print("SWAG Sample %d/%d. EVAL" % (i + 1, num_samples))
         res = predict(test_loader, swag_model, verbose=True)
         predictions = res["predictions"]
+        targets = res["targets"]
 
         accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
         nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + eps))

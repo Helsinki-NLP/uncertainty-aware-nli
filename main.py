@@ -266,7 +266,7 @@ def main():
 
         elif config.method == "swag":
             swag_utils.bn_update(train_loader, swag_model)
-            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.is_cov_mat, config.scale)
+            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.cov_mat, config.scale)
 
             dev_loss = swag_res["loss"]
             dev_accuracy = swag_res["accuracy"]
