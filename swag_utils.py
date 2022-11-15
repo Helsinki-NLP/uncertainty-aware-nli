@@ -11,6 +11,7 @@ import torch.nn.functional as F
 
 from swa_gaussian.swag.utils import *
 
+EPSILON = 1e-12
 
 def train_epoch(
     loader,
@@ -65,8 +66,6 @@ def train_epoch(
             )
             verb_stage += 1
 
-        break #DEBUG
-
     return {
         "loss": loss_sum / num_objects_current,
         "accuracy": None if regression else correct / num_objects_current * 100.0,
@@ -74,7 +73,6 @@ def train_epoch(
 
 
 def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
-    print('num classes: ', len(set(test_loader.dataset.labels)))
     swag_predictions = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     for i in range(num_samples):
         swag_model.sample(scale, cov=is_cov_mat)   #and (not args.use_diag_bma))
@@ -87,7 +85,7 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
         targets = res["targets"]
 
         accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
-        nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + eps))
+        nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + EPSILON))
         print(
             "SWAG Sample %d/%d. Accuracy: %.2f%% NLL: %.4f"
             % (i + 1, num_samples, accuracy * 100, nll)
@@ -99,7 +97,7 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
         ens_nll = -np.mean(
             np.log(
                 swag_predictions[np.arange(swag_predictions.shape[0]), targets] / (i + 1)
-                + eps
+                + EPSILON
             )
         )
         print(
@@ -111,9 +109,9 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
 
     swag_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
     swag_nll = -np.mean(
-        np.log(swag_predictions[np.arange(swag_predictions.shape[0]), targets] + eps)
+        np.log(swag_predictions[np.arange(swag_predictions.shape[0]), targets] + EPSILON)
     )
-    swag_entropies = -np.sum(np.log(swag_predictions + eps) * swag_predictions, axis=1)
+    swag_entropies = -np.sum(np.log(swag_predictions + EPSILON) * swag_predictions, axis=1)
 
     return {
         "loss": swag_nll,
