@@ -310,15 +310,15 @@ def main():
 
         swag_res = swag_utils.eval(test_loader, swag_model, config.num_samples, config.cov_mat, config.scale)
 
-	test_accuracy = swag_res["accuracy"]
+        test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
 
         test_confidences = swag_res["confidences"]
         test_nll = swag_res["nll"]
         test_entropies = swag_res["entropies"]
 
-	test_predictions = swag_res["predictions"]
-	test_targets = swag_res["targets"]
+        test_predictions = swag_res["predictions"]
+        test_targets = swag_res["targets"]
    
         with open(
             f"{output_dir}/swag_stats.npz",
