@@ -320,19 +320,15 @@ def main():
         test_predictions = swag_res["predictions"]
         test_targets = swag_res["targets"]
    
-        with open(
+        np.savez(
             f"{output_dir}/swag_stats.npz",
-            "w",
-        ) as swagfile:
-           np.savez(
-		swagfile,
-		accuracy=test_accuracy,
-		nll=test_nll,
-		entropies=test_entropies,
-		confidences=test_confidences,
-		predictions=test_predictions,
-		targets=test_targets,
-	    ) 
+            accuracy=test_accuracy,
+            nll=test_nll,
+            entropies=test_entropies,
+            confidences=test_confidences,
+            predictions=test_predictions,
+            targets=test_targets,
+        ) 
 
     else:
         test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
