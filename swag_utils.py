@@ -108,14 +108,20 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
     swag_predictions /= num_samples
 
     swag_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
+    swag_confidences = np.argmax(swag_predictions, axis=1)
     swag_nll = -np.mean(
         np.log(swag_predictions[np.arange(swag_predictions.shape[0]), targets] + EPSILON)
     )
     swag_entropies = -np.sum(np.log(swag_predictions + EPSILON) * swag_predictions, axis=1)
-
+    
     return {
         "loss": swag_nll,
         "accuracy": swag_accuracy * 100,
+        "confidences": swag_confidences,
+        "nll": swag_nll,
+        "entropies": swag_entropies,
+        "predictions": swag_predictions,
+        "targets": targets
     }
 
 
