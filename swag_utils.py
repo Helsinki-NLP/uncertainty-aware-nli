@@ -66,6 +66,8 @@ def train_epoch(
             )
             verb_stage += 1
 
+        break #DEBUG
+
     return {
         "loss": loss_sum / num_objects_current,
         "accuracy": None if regression else correct / num_objects_current * 100.0,
