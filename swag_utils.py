@@ -74,10 +74,11 @@ def train_epoch(
     }
 
 
-def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
-    swag_predictions = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
+def eval(test_loader, swag_model, num_samples, is_cov_mat, scale, is_blockwise):
+    swag_predictions_accum = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
+    swag_predictions_history = np.zeros((num_samples, len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     for i in range(num_samples):
-        swag_model.sample(scale, cov=is_cov_mat)   #and (not args.use_diag_bma))
+        swag_model.sample(scale, cov=is_cov_mat, block=is_blockwise)   #and (not args.use_diag_bma))
 
         #print("SWAG Sample %d/%d. BN update" % (i + 1, num_samples))
         #utils.bn_update(train_loader, swag_model, verbose=True, subset=0.1)
@@ -93,12 +94,13 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
             % (i + 1, num_samples, accuracy * 100, nll)
         )
 
-        swag_predictions += predictions
+        swag_predictions_accum += predictions
+        swag_predictions_history[i,:,:] = predictions
 
-        ens_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
+        ens_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == targets)
         ens_nll = -np.mean(
             np.log(
-                swag_predictions[np.arange(swag_predictions.shape[0]), targets] / (i + 1)
+                swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), targets] / (i + 1)
                 + EPSILON
             )
         )
@@ -107,14 +109,14 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
             % (i + 1, num_samples, ens_accuracy * 100, ens_nll)
         )
 
-    swag_predictions /= num_samples
+    swag_predictions_accum /= num_samples
 
-    swag_accuracy = np.mean(np.argmax(swag_predictions, axis=1) == targets)
-    swag_confidences = np.argmax(swag_predictions, axis=1)
+    swag_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == targets)
+    swag_confidences = np.argmax(swag_predictions_accum, axis=1)
     swag_nll = -np.mean(
-        np.log(swag_predictions[np.arange(swag_predictions.shape[0]), targets] + EPSILON)
+        np.log(swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), targets] + EPSILON)
     )
-    swag_entropies = -np.sum(np.log(swag_predictions + EPSILON) * swag_predictions, axis=1)
+    swag_entropies = -np.sum(np.log(swag_predictions_accum + EPSILON) * swag_predictions_accum, axis=1)
     
     return {
         "loss": swag_nll,
@@ -122,7 +124,7 @@ def eval(test_loader, swag_model, num_samples, is_cov_mat, scale):
         "confidences": swag_confidences,
         "nll": swag_nll,
         "entropies": swag_entropies,
-        "predictions": swag_predictions,
+        "predictions": swag_predictions_history,
         "targets": targets
     }
 

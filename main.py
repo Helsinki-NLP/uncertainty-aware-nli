@@ -53,6 +53,7 @@ parser.add_argument(
 parser.add_argument("--swa_start", type=int, default=1)
 parser.add_argument("--num_labels", type=int, default=3)
 parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
+parser.add_argument("--blockwise", action="store_true", help="use layerwise-covariences only")
 parser.add_argument("--scale", type=float, default=1.0, help="SWAG scale")
 
 parser.add_argument(
@@ -266,7 +267,7 @@ def main():
 
         elif config.method == "swag":
             swag_utils.bn_update(train_loader, swag_model)
-            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.cov_mat, config.scale)
+            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
 
             dev_loss = swag_res["loss"]
             dev_accuracy = swag_res["accuracy"]
@@ -308,7 +309,7 @@ def main():
         #swag_model.sample(0.0)
         #swag_utils.bn_update(train_loader, swag_model)
 
-        swag_res = swag_utils.eval(test_loader, swag_model, config.num_samples, config.cov_mat, config.scale)
+        swag_res = swag_utils.eval(test_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
 
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
