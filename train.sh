@@ -25,4 +25,6 @@ srun python main.py \
     --gpu 0 \
     --seed ${SEED} \
     --method swag \
+    --cov_mat \
+#   --blockwise \
     --dataset ${DATASET}
