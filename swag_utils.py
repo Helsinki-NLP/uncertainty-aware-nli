@@ -72,18 +72,21 @@ def train_epoch(
     }
 
 
-def eval(test_loader, swag_model, num_samples, is_cov_mat, scale, is_blockwise):
+def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, is_blockwise):
     swag_predictions_accum = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     swag_predictions_history = np.zeros((num_samples, len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     for i in range(num_samples):
         swag_model.sample(scale, cov=is_cov_mat, block=is_blockwise)   #and (not args.use_diag_bma))
 
-        #print("SWAG Sample %d/%d. BN update" % (i + 1, num_samples))
-        #utils.bn_update(train_loader, swag_model, verbose=True, subset=0.1)
+        print("SWAG Sample %d/%d. BN update" % (i + 1, num_samples))
+        bn_update(train_loader, swag_model, verbose=True, subset=0.1)
         print("SWAG Sample %d/%d. EVAL" % (i + 1, num_samples))
         res = predict(test_loader, swag_model, verbose=True)
         predictions = res["predictions"]
         targets = res["targets"]
+
+        print('predictions:', predictions)
+        print('targets:', targets)
 
         accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
         nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + EPSILON))
