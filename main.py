@@ -266,8 +266,8 @@ def main():
             dev_accuracy = (dev_labels == dev_preds).mean()
 
         elif config.method == "swag":
-            swag_utils.bn_update(train_loader, swag_model)
-            swag_res = swag_utils.eval(dev_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
+            #swag_utils.bn_update(train_loader, swag_model)
+            swag_res = swag_utils.eval(dev_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
 
             dev_loss = swag_res["loss"]
             dev_accuracy = swag_res["accuracy"]
@@ -309,7 +309,7 @@ def main():
         #swag_model.sample(0.0)
         #swag_utils.bn_update(train_loader, swag_model)
 
-        swag_res = swag_utils.eval(test_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
+        swag_res = swag_utils.eval(test_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
 
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]

@@ -99,7 +99,7 @@ def get_nli_dataset(config, tokenizer):
     test_dataset = NLIDataset(test_encodings, test_labels)
 
     train_loader = DataLoader(train_dataset, batch_size=config.batch_size, shuffle=True)
-    dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=True)
+    dev_loader = DataLoader(dev_dataset, batch_size=config.batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=config.batch_size, shuffle=False)
 
     return train_loader, dev_loader, test_loader
