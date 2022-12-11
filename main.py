@@ -6,6 +6,7 @@ import numpy as np
 from pathlib import Path
 import random
 import torch
+from torch.nn.functional import softmax
 from tqdm import tqdm
 from transformers import AdamW
 from torch.optim import Adam, SGD
@@ -100,13 +101,18 @@ def train(config, train_loader, model, optim, device, epoch):
                 )
             )
 
+        #break #DEBUG
+
 
 def evaluate(model, dataloader, device):
     logging.info("Starting evaluation...")
     model.eval()
     with torch.no_grad():
         eval_preds = []
+        eval_probs = []
         eval_labels = []
+        eval_annotations = []
+        eval_ids = []
 
         for batch in tqdm(dataloader, total=len(dataloader)):
             input_ids = batch["input_ids"].to(device)
@@ -114,12 +120,22 @@ def evaluate(model, dataloader, device):
             labels = batch["labels"].to(device)
             preds = model(input_ids, attention_mask=attention_mask, labels=labels)
             loss = preds[0]
+            probs = softmax(preds[1],dim=-1)
             preds = preds[1].argmax(dim=-1)
+            
             eval_preds.append(preds.cpu().numpy())
+            eval_probs.append(probs.cpu().numpy())
             eval_labels.append(batch["labels"].cpu().numpy())
+            eval_annotations.append(batch["annotations"].cpu().numpy())
+            eval_ids.append(batch["input_ids"].cpu().numpy())
 
     logging.info("Done evaluation")
-    return np.concatenate(eval_labels), np.concatenate(eval_preds), loss.item()
+    return np.concatenate(eval_labels), \
+           np.concatenate(eval_preds), \
+           loss.item(), \
+           np.concatenate(eval_probs), \
+           np.concatenate(eval_annotations), \
+           np.concatenate(eval_ids)
 
 
 def main():
@@ -222,13 +238,14 @@ def main():
     for epoch in range(config.epochs):
         logging.info(f"Epoch {epoch}")
 
+        print(config.method)
         if config.method == "swa":
             train(config, train_loader, model, optim, device, epoch)
             if epoch > config.swa_start:
                 swa_model.update_parameters(model)
                 swa_scheduler.step()
             else:
-                scheduler.step()
+                swa_scheduler.step()
 
         #+++HANDE
         elif config.method == "swag":
@@ -261,8 +278,8 @@ def main():
 
 
         # Evaluating dev performance for early-stopping:        
-        if config.method == "swa":
-            dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
+        if config.method == "swa" or config.method == "no-avg":
+            dev_labels, dev_preds, dev_loss, dev_probs, dev_annotations, dev_ids = evaluate(model, dev_loader, device)
             dev_accuracy = (dev_labels == dev_preds).mean()
 
         elif config.method == "swag":
@@ -298,9 +315,18 @@ def main():
 
     if config.method == "swa":
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
-        test_labels, test_preds, test_loss = evaluate(swa_model, test_loader, device)
+        test_labels, test_preds, test_loss, test_probs, test_annotations, test_ids = evaluate(swa_model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
     
+        np.savez(
+            f"{output_dir}/swa_stats.npz",
+            predictions=test_preds,
+            probabilities=test_probs,
+            labels=test_labels,
+            annotations=test_annotations,
+            ids=test_ids
+        ) 
+
 
 
 
@@ -318,22 +344,34 @@ def main():
         test_nll = swag_res["nll"]
         test_entropies = swag_res["entropies"]
 
-        test_predictions = swag_res["predictions"]
-        test_targets = swag_res["targets"]
-   
+        test_preds = swag_res["predictions"]
+        test_labels = swag_res["labels"]
+        test_annotations = swag_res["annotations"]
+        test_ids = swag_res["ids"]
+
         np.savez(
             f"{output_dir}/swag_stats.npz",
             accuracy=test_accuracy,
             nll=test_nll,
             entropies=test_entropies,
             confidences=test_confidences,
-            predictions=test_predictions,
-            targets=test_targets,
+            predictions=test_preds,
+            labels=test_labels,
+            annotations=test_annotations,
+            ids=test_ids
         ) 
 
     else:
-        test_labels, test_preds, test_loss = evaluate(model, test_loader, device)
+        test_labels, test_preds, test_loss, test_probs, test_annotations, test_ids = evaluate(model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
+        np.savez(
+            f"{output_dir}/no_avg_stats.npz",
+            predictions=test_preds,
+            probabilities=test_probs,
+            labels=test_labels,
+            annotations=test_annotations,
+            ids=test_ids
+        ) 
 
 
     logging.info(f"=== SUMMARY ===")

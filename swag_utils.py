@@ -42,7 +42,8 @@ def train_epoch(
         if cuda:
             for key in batch.keys():
                 batch[key] = batch[key].cuda()
-        outputs = model(**batch)
+
+        outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
         loss = outputs.loss
 
         optimizer.zero_grad()
@@ -66,6 +67,8 @@ def train_epoch(
             )
             verb_stage += 1
 
+        #break #DEBUG
+
     return {
         "loss": loss_sum / num_objects_current,
         "accuracy": None if regression else correct / num_objects_current * 100.0,
@@ -83,13 +86,12 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
         print("SWAG Sample %d/%d. EVAL" % (i + 1, num_samples))
         res = predict(test_loader, swag_model, verbose=True)
         predictions = res["predictions"]
-        targets = res["targets"]
+        labels = res["labels"]
+        annotations = res["annotations"]
+        ids = res["ids"]
 
-        print('predictions:', predictions)
-        print('targets:', targets)
-
-        accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
-        nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), targets] + EPSILON))
+        accuracy = np.mean(np.argmax(predictions, axis=1) == labels)
+        nll = -np.mean(np.log(predictions[np.arange(predictions.shape[0]), labels] + EPSILON))
         print(
             "SWAG Sample %d/%d. Accuracy: %.2f%% NLL: %.4f"
             % (i + 1, num_samples, accuracy * 100, nll)
@@ -98,10 +100,10 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
         swag_predictions_accum += predictions
         swag_predictions_history[i,:,:] = predictions
 
-        ens_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == targets)
+        ens_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == labels)
         ens_nll = -np.mean(
             np.log(
-                swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), targets] / (i + 1)
+                swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), labels] / (i + 1)
                 + EPSILON
             )
         )
@@ -112,10 +114,10 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
 
     swag_predictions_accum /= num_samples
 
-    swag_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == targets)
+    swag_accuracy = np.mean(np.argmax(swag_predictions_accum, axis=1) == labels)
     swag_confidences = np.argmax(swag_predictions_accum, axis=1)
     swag_nll = -np.mean(
-        np.log(swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), targets] + EPSILON)
+        np.log(swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), labels] + EPSILON)
     )
     swag_entropies = -np.sum(np.log(swag_predictions_accum + EPSILON) * swag_predictions_accum, axis=1)
     
@@ -126,13 +128,17 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
         "nll": swag_nll,
         "entropies": swag_entropies,
         "predictions": swag_predictions_history,
-        "targets": targets
+        "labels": labels,
+        "annotations": annotations,
+        "ids": ids
     }
 
 
 def predict(loader, model, cuda=True, verbose=False):
     predictions = list()
-    targets = list()
+    labels = list()
+    annotations = list()
+    ids = list()
 
     model.eval()
 
@@ -145,12 +151,19 @@ def predict(loader, model, cuda=True, verbose=False):
             if cuda:
                 for key in batch.keys():
                     batch[key] = batch[key].cuda()
-            outputs = model(**batch)
+	    
+            outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
             loss = outputs.loss
 
-            batch_size = batch['input_ids'].size(0)
+            batch_size = batch["input_ids"].size(0)
+            
             predictions.append(F.softmax(outputs.logits, dim=1).cpu().numpy())
-            targets.append(batch['labels'].cpu().numpy())
+            labels.append(batch["labels"].cpu().numpy())
+            annotations.append(batch["annotations"].cpu().numpy())
+            ids.append(batch["input_ids"].cpu().numpy())
+            
             offset += batch_size
 
-    return {"predictions": np.concatenate(predictions), "targets": np.concatenate(targets)}
+    return {"predictions": np.concatenate(predictions), "labels": np.concatenate(labels), 
+            "annotations": np.concatenate(annotations), "ids": np.concatenate(ids)}
+
