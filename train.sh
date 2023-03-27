@@ -13,18 +13,16 @@
 module purge
 module load pytorch/1.12
 export DATASET=${1}
-export OPTIMIZER=${2}
-export SEED=${3}
+export METHOD=${2}
 
 srun python main.py \
     --model roberta \
     --batch_size 32 \
     --epochs 20 \
     --early_stopping 3 \
-    --optimizer ${OPTIMIZER} \
+    --optimizer AdamW \
     --gpu 0 \
-    --seed ${SEED} \
-    --method swag \
+    --seed 1011 \
+    --method ${METHOD} \
     --cov_mat \
-#   --blockwise \
     --dataset ${DATASET}
