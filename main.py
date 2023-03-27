@@ -201,7 +201,7 @@ def main():
     if config.method == "swa":
         logging.info("SWA training")
         swa_model = AveragedModel(model)
-        swa_scheduler = SWALR(optim, swa_lr=0.05)
+        swa_scheduler = SWALR(optim, swa_lr=0.00002)
  
     #+++HANDE
     elif config.method == "swag":
@@ -276,6 +276,8 @@ def main():
             #    logging.info("eval 1")
 
 
+        else:
+            train(config, train_loader, model, optim, device, epoch)
 
         # Evaluating dev performance for early-stopping:        
         if config.method == "swa" or config.method == "no-avg":
@@ -398,9 +400,9 @@ def main():
         )
         resultfile.write(f"Test accuracy: {test_accuracy}\n\n")
 
-    with open(f"output/result_summary{config.seed}.csv", "a") as summary_results:
+    with open(f"output/result_summary_{config.seed}.csv", "a") as summary_results:
         summary_results.write(
-            f"{config.dataset}\t{model.__class__.__name__},{config.optimizer},{config.method},{stopped_after},{config.batch_size},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
+            f"{config.dataset},{config.method},{stopped_after},{int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f},{test_accuracy}\n"
         )
 
     #with open(
