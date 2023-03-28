@@ -14,6 +14,11 @@ cd uncertainty-aware-nli
 pip3 install -r requirements.txt
 ```
 
+Download and prepare data by running:
+```
+./download_data.sh
+```
+
 See [train.sh](train.sh) and [experiment.sh](experiment.sh) for examples on how to run the code and modify those for your environment.
 
 ## Paper
