@@ -1,6 +1,6 @@
 # Uncertainty-Aware NLI with Stochastic Weight Averaging
 
-This repository contains the code for running the experiments reported in our paper:
+This repository contains code for running the experiments reported in our paper:
 
 **Aarne Talman, Hande Celikkanat, Sami Virpioja, Markus Heinonen, Jörg Tiedemann. 2023. [Uncertainty-Aware Natural Language Inference with Stochastic Weight Averaging](https://openreview.net/forum?id=uygq9_N7TL). Proceedings of the 24th Nordic Conference on Computational Linguistics (NoDaLiDa).**
 
