@@ -1,6 +1,7 @@
 import sys
 import copy
 import datasets
+import itertools
 import logging
 import json
 import pandas as pd
@@ -8,15 +9,16 @@ import torch
 from torch.utils.data import DataLoader
 
 
-def _get_data(file_path: str):
-    data = [json.loads(line) for line in open(file_path, "r")]
+def _get_data(file_path: str, limit: int = None):
+    with open(file_path, "r") as fobj:
+        data = [json.loads(line) for line in itertools.islice(fobj, limit)]
     dataset = pd.DataFrame(data)
     dataset = dataset[dataset.gold_label != "-"]
     dataset["gold_label"].replace(to_replace="entailment", value=0, inplace=True)
     dataset["gold_label"].replace(to_replace="neutral", value=1, inplace=True)
     dataset["gold_label"].replace(to_replace="contradiction", value=2, inplace=True)
-   
-    
+
+
     if "annotator_labels" not in dataset.keys() or "train" in file_path:
         #Exceptional handling for the SICK dataset, which does not have 5 different annotation labels
         dataset["annotator_labels"] = dataset.apply(lambda x: [-1, -1, -1, -1, -1], axis = 1)
@@ -69,21 +71,21 @@ def get_nli_dataset(config, tokenizer):
 
     if config.dataset:
         logging.info(f"Experiment dataset: {config.dataset}")
-        
+
         train_premises, train_hypotheses, train_labels, train_annotations = _get_data(
-            "data/" + config.dataset + "/train.jsonl"
+            "data/" + config.dataset + "/train.jsonl", limit=config.train_limit
         )
         logging.info(
             f"First training example: {train_premises[0]} --> {train_hypotheses[0]} ({train_labels[0]})"
         )
         dev_premises, dev_hypotheses, dev_labels, dev_annotations = _get_data(
-            "data/" + config.dataset + "/dev.jsonl"
+            "data/" + config.dataset + "/dev.jsonl", limit=config.dev_limit
         )
         logging.info(
             f"First dev example: {dev_premises[0]} --> {dev_hypotheses[0]} ({dev_labels[0]})"
         )
         test_premises, test_hypotheses, test_labels, test_annotations = _get_data(
-            "data/" + config.dataset + "/test.jsonl"
+            "data/" + config.dataset + "/test.jsonl", limit=config.test_limit
         )
         logging.info(
             f"First test example: {test_premises[0]} --> {test_hypotheses[0]} ({test_labels[0]})"
@@ -110,15 +112,18 @@ def get_nli_dataset(config, tokenizer):
         #test_hypotheses = test_dataset["hypothesis"]
         #test_labels = test_dataset["label"]
 
+    logging.info("Tokenizing train")
     train_encodings = tokenizer(
         train_premises,
         train_hypotheses,
         truncation=True,
         padding=True,
     )
+    logging.info("Tokenizing dev")
     dev_encodings = tokenizer(
         dev_premises, dev_hypotheses, truncation=True, padding=True
     )
+    logging.info("Tokenizing test")
     test_encodings = tokenizer(
         test_premises,
         test_hypotheses,
@@ -126,6 +131,7 @@ def get_nli_dataset(config, tokenizer):
         padding=True,
     )
 
+    logging.info("Initializing loaders")
     train_dataset = NLIDataset(train_encodings, train_labels, train_annotations)
     dev_dataset = NLIDataset(dev_encodings, dev_labels, dev_annotations)
     test_dataset = NLIDataset(test_encodings, test_labels, test_annotations)

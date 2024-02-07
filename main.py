@@ -1,21 +1,23 @@
 from argparse import ArgumentParser
-from data import get_nli_dataset
 import logging
-import models
-import numpy as np
 from pathlib import Path
 import random
-import torch
-from torch.nn.functional import softmax
-from tqdm import tqdm
-from transformers import AdamW
-from torch.optim import Adam, SGD
-from torch.optim.swa_utils import AveragedModel, SWALR
-from torch.optim.lr_scheduler import CosineAnnealingLR
 import time
 
+import numpy as np
+import torch
+from torch.nn.functional import softmax
+from torch.optim import Adam, SGD
+from torch.optim.swa_utils import AveragedModel, SWALR
+from tqdm import tqdm
+from transformers import AdamW
+
+from swag.posteriors.swag import SWAG
+
+from data import get_nli_dataset
+import models
 import swag_utils
-from swa_gaussian.swag.posteriors.swag import SWAG
+
 
 parser = ArgumentParser(description="NLI with Transformers")
 
@@ -42,6 +44,9 @@ parser.add_argument(
         "mnli-sick",
     ]
 )
+parser.add_argument("--train_limit", type=int, default=None)
+parser.add_argument("--dev_limit", type=int, default=None)
+parser.add_argument("--test_limit", type=int, default=None)
 parser.add_argument("--optimizer", type=str, default="AdamW")
 parser.add_argument(
     "--model",
@@ -122,7 +127,7 @@ def evaluate(model, dataloader, device):
             loss = preds[0]
             probs = softmax(preds[1],dim=-1)
             preds = preds[1].argmax(dim=-1)
-            
+
             eval_preds.append(preds.cpu().numpy())
             eval_probs.append(probs.cpu().numpy())
             eval_labels.append(batch["labels"].cpu().numpy())
@@ -151,7 +156,7 @@ def main():
         config.no_cov_mat = False
     else:
         config.no_cov_mat = True
-    
+
     if torch.cuda.is_available():
         device = torch.device(f"cuda:{config.gpu}")
         use_cuda = True
@@ -183,7 +188,7 @@ def main():
         tokenizer = model.get_tokenizer()
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
-    
+
     logging.info(f"Optimizer {config.optimizer}")
 
     if config.optimizer == "Adam":
@@ -194,7 +199,7 @@ def main():
         optim = AdamW(model.parameters(), lr=0.00002)
 
     model.to(device)
-    
+
 
     #---HANDE
 
@@ -202,7 +207,7 @@ def main():
         logging.info("SWA training")
         swa_model = AveragedModel(model)
         swa_scheduler = SWALR(optim, swa_lr=0.00002)
- 
+
     #+++HANDE
     elif config.method == "swag":
         # initialize SWAG
@@ -212,13 +217,13 @@ def main():
             models.LangModel,
             no_cov_mat=config.no_cov_mat,
             max_num_models=config.max_num_models,
-            num_labels=config.num_labels, 
+            num_labels=config.num_labels,
             model_cls=model_specs['model_cls'],
             model_subtype=model_specs['model_subtype'],
             tokenizer_cls=model_specs['tokenizer_cls'],
             tokenizer_subtype=model_specs['tokenizer_subtype']
         )
-        swag_model.to(device) 
+        swag_model.to(device)
 
     else: #config.method == "no-avg"
         # raise not implemented error
@@ -234,7 +239,7 @@ def main():
     best_loss = 999
     stopped_after = config.early_stopping
 
-    
+
     for epoch in range(config.epochs):
         logging.info(f"Epoch {epoch}")
 
@@ -253,7 +258,7 @@ def main():
             swag_utils.train_epoch(train_loader, model, optim, cuda=use_cuda, verbose=True)
             if epoch > config.swa_start:
                 swag_model.collect_model(model)
-                
+
                 #Moved below:
                 #if (
                 #    epoch == 0
@@ -279,31 +284,31 @@ def main():
         else:
             train(config, train_loader, model, optim, device, epoch)
 
-        # Evaluating dev performance for early-stopping:        
+        # Evaluating dev performance for early-stopping:
         if config.method == "swa" or config.method == "no-avg":
             dev_labels, dev_preds, dev_loss, dev_probs, dev_annotations, dev_ids = evaluate(model, dev_loader, device)
             dev_accuracy = (dev_labels == dev_preds).mean()
 
         elif config.method == "swag":
             #swag_utils.bn_update(train_loader, swag_model)
-            swag_res = swag_utils.eval(dev_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
+            swag_res = swag_utils.eval(dev_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise, cuda=use_cuda)
 
             dev_loss = swag_res["loss"]
             dev_accuracy = swag_res["accuracy"]
 
-        #---HANDE    
+        #---HANDE
 
         logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
         logging.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
         logging.info(f"Previous best: {best_loss:<.4f}")
 
         snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
-        torch.save(model, snapshot_path)
+        torch.save(swag_model if config.method == "swag" else model, snapshot_path)
 
         if dev_loss < best_loss:
             best_loss = dev_loss
             early_stopping = config.early_stopping
-        else: 
+        else:
             early_stopping = early_stopping - 1
 
         if early_stopping == 0:
@@ -319,7 +324,7 @@ def main():
         torch.optim.swa_utils.update_bn(train_loader, swa_model)
         test_labels, test_preds, test_loss, test_probs, test_annotations, test_ids = evaluate(swa_model, test_loader, device)
         test_accuracy = (test_labels == test_preds).mean()
-    
+
         np.savez(
             f"{output_dir}/swa_stats.npz",
             predictions=test_preds,
@@ -327,7 +332,7 @@ def main():
             labels=test_labels,
             annotations=test_annotations,
             ids=test_ids
-        ) 
+        )
 
 
 
@@ -337,7 +342,7 @@ def main():
         #swag_model.sample(0.0)
         #swag_utils.bn_update(train_loader, swag_model)
 
-        swag_res = swag_utils.eval(test_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise)
+        swag_res = swag_utils.eval(test_loader, train_loader, swag_model, config.num_samples, config.cov_mat, config.scale, config.blockwise, cuda=use_cuda)
 
         test_accuracy = swag_res["accuracy"]
         test_loss = swag_res["loss"]
@@ -361,7 +366,7 @@ def main():
             labels=test_labels,
             annotations=test_annotations,
             ids=test_ids
-        ) 
+        )
 
     else:
         test_labels, test_preds, test_loss, test_probs, test_annotations, test_ids = evaluate(model, test_loader, device)
@@ -373,7 +378,7 @@ def main():
             labels=test_labels,
             annotations=test_annotations,
             ids=test_ids
-        ) 
+        )
 
 
     logging.info(f"=== SUMMARY ===")
@@ -414,7 +419,7 @@ def main():
     #        predictions_file.write(f"{pred}\t{labl}")
 
     final_snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_final_snapshot_epochs_{stopped_after}_devacc_{round(dev_accuracy, 3)}.pt"
-    torch.save(model, final_snapshot_path)
+    torch.save(swag_model if config.method == "swag" else model, final_snapshot_path)
 
 
 if __name__ == "__main__":

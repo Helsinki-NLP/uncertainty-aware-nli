@@ -1,17 +1,15 @@
 import itertools
-import torch
-import os
-import copy
-from datetime import datetime
-import math
+
 import numpy as np
 import tqdm
-
+import torch
 import torch.nn.functional as F
 
-from swa_gaussian.swag.utils import *
+from swag.utils import *
+
 
 EPSILON = 1e-12
+
 
 def train_epoch(
     loader,
@@ -49,7 +47,7 @@ def train_epoch(
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-    
+
         loss_sum += loss.data.item() * batch['input_ids'].size(0)
         if not regression:
             pred = outputs.logits.argmax(1, keepdim=True)
@@ -75,7 +73,7 @@ def train_epoch(
     }
 
 
-def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, is_blockwise):
+def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, is_blockwise, cuda=True):
     swag_predictions_accum = np.zeros((len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     swag_predictions_history = np.zeros((num_samples, len(test_loader.dataset), len(set(test_loader.dataset.labels))))
     for i in range(num_samples):
@@ -84,7 +82,7 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
         print("SWAG Sample %d/%d. BN update" % (i + 1, num_samples))
         bn_update(train_loader, swag_model, verbose=True, subset=0.1)
         print("SWAG Sample %d/%d. EVAL" % (i + 1, num_samples))
-        res = predict(test_loader, swag_model, verbose=True)
+        res = predict(test_loader, swag_model, cuda=cuda, verbose=True)
         predictions = res["predictions"]
         labels = res["labels"]
         annotations = res["annotations"]
@@ -120,7 +118,7 @@ def eval(test_loader, train_loader, swag_model, num_samples, is_cov_mat, scale, 
         np.log(swag_predictions_accum[np.arange(swag_predictions_accum.shape[0]), labels] + EPSILON)
     )
     swag_entropies = -np.sum(np.log(swag_predictions_accum + EPSILON) * swag_predictions_accum, axis=1)
-    
+
     return {
         "loss": swag_nll,
         "accuracy": swag_accuracy * 100,
@@ -151,19 +149,18 @@ def predict(loader, model, cuda=True, verbose=False):
             if cuda:
                 for key in batch.keys():
                     batch[key] = batch[key].cuda()
-	    
+
             outputs = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"], labels=batch["labels"])
             loss = outputs.loss
 
             batch_size = batch["input_ids"].size(0)
-            
+
             predictions.append(F.softmax(outputs.logits, dim=1).cpu().numpy())
             labels.append(batch["labels"].cpu().numpy())
             annotations.append(batch["annotations"].cpu().numpy())
             ids.append(batch["input_ids"].cpu().numpy())
-            
+
             offset += batch_size
 
-    return {"predictions": np.concatenate(predictions), "labels": np.concatenate(labels), 
+    return {"predictions": np.concatenate(predictions), "labels": np.concatenate(labels),
             "annotations": np.concatenate(annotations), "ids": np.concatenate(ids)}
-
