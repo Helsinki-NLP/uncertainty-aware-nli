@@ -11,11 +11,11 @@ from transformers import (
 #+++HANDE
 
 MODEL_SPECS = {
-    'bert': {'model_cls': BertForSequenceClassification, 'tokenizer_cls': BertTokenizer, 
+    'bert': {'model_cls': BertForSequenceClassification, 'tokenizer_cls': BertTokenizer,
             'model_subtype': 'bert-base-multilingual-cased', 'tokenizer_subtype': 'bert-base-cased'},
     'deberta_v2': {'model_cls': DebertaV2ForSequenceClassification,  'tokenizer_cls': DebertaV2Tokenizer,
-               'model_subtype': 'microsoft/deberta-v2-xlarge', 'tokenizer_subtype': 'microsoft/deberta-v2-xlarge'}, 
-    'roberta': {'model_cls': RobertaForSequenceClassification,  'tokenizer_cls': RobertaTokenizer, 
+               'model_subtype': 'microsoft/deberta-v2-xlarge', 'tokenizer_subtype': 'microsoft/deberta-v2-xlarge'},
+    'roberta': {'model_cls': RobertaForSequenceClassification,  'tokenizer_cls': RobertaTokenizer,
                'model_subtype': 'roberta-base', 'tokenizer_subtype': 'roberta-base'}
 }
 
@@ -41,8 +41,8 @@ def get_model(config):
 #+++HANDE
 
 class LangModel(nn.Module):
-    def __init__(self, num_labels=3, model_cls = BertForSequenceClassification, tokenizer_cls = BertTokenizer, 
-                                   model_subtype='bert-base-multilingual-cased', tokenizer_subtype='bert-base-cased'):
+    def __init__(self, num_labels=3, model_cls=BertForSequenceClassification, tokenizer_cls=BertTokenizer,
+                 model_subtype='bert-base-multilingual-cased', tokenizer_subtype='bert-base-cased'):
         super(LangModel, self).__init__()
 
         self.lm = model_cls.from_pretrained(model_subtype, num_labels=num_labels)
@@ -55,8 +55,8 @@ class LangModel(nn.Module):
     def get_tokenizer(self):
         return self.tokenizer
 
-    def forward(self, **kwargs):
-        return self.lm(**kwargs)       
+    def forward(self, *args, **kwargs):
+        return self.lm(*args, **kwargs)
 
 
 def get_model_specs(model_type):
