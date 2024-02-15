@@ -12,7 +12,7 @@ from torch.optim.swa_utils import AveragedModel, SWALR
 from tqdm import tqdm
 from transformers import AdamW
 
-from swag.posteriors.swag import SWAG
+from swag_for_sequence_classification import SwagForSequenceClassification
 
 from data import get_nli_dataset
 import models
@@ -21,6 +21,7 @@ import swag_utils
 
 parser = ArgumentParser(description="NLI with Transformers")
 
+parser.add_argument("--logging", type=str, default='info')
 parser.add_argument("--train_language", type=str, default=None)
 parser.add_argument("--test_language", type=str, default=None)
 parser.add_argument("--batch_size", type=int, default=32)
@@ -30,6 +31,7 @@ parser.add_argument("--log_every", type=int, default=100)
 parser.add_argument("--method", type=str, choices=["swa", "swag", "no-avg"], default="no-swa")
 parser.add_argument("--gpu", type=int, default=None)
 parser.add_argument("--seed", type=int, default=1234)
+parser.add_argument("--datapath", type=str, default='./data')
 parser.add_argument(
     "--dataset",
     type=str,
@@ -55,7 +57,6 @@ parser.add_argument(
     default="roberta",
 )
 
-#+++HANDE
 parser.add_argument("--swa_start", type=int, default=1)
 parser.add_argument("--num_labels", type=int, default=3)
 parser.add_argument("--cov_mat", action="store_true", help="save sample covariance")
@@ -77,15 +78,12 @@ parser.add_argument(
     help="number of samples for SWAG (default: 100)",
 )
 
-#---HANDE
-
-logging.basicConfig(level=logging.INFO)
-
+logger = logging.getLogger(__name__)
 
 def train(config, train_loader, model, optim, device, epoch):
-    logging.info("Starting training...")
+    logger.info("Starting training...")
     model.train()
-    logging.info(f"Epoch: {epoch + 1}/{config.epochs}")
+    logger.info(f"Epoch: {epoch + 1}/{config.epochs}")
     for i, batch in enumerate(train_loader):
         optim.zero_grad()
         input_ids = batch["input_ids"].to(device)
@@ -96,7 +94,7 @@ def train(config, train_loader, model, optim, device, epoch):
         loss.backward()
         optim.step()
         if i == 0 or i % config.log_every == 0 or i + 1 == len(train_loader):
-            logging.info(
+            logger.info(
                 "Epoch: {} - Progress: {:3.0f}% - Batch: {:>4.0f}/{:<4.0f} - Loss: {:<.4f}".format(
                     epoch + 1,
                     100.0 * (1 + i) / len(train_loader),
@@ -110,7 +108,7 @@ def train(config, train_loader, model, optim, device, epoch):
 
 
 def evaluate(model, dataloader, device):
-    logging.info("Starting evaluation...")
+    logger.info("Starting evaluation...")
     model.eval()
     with torch.no_grad():
         eval_preds = []
@@ -134,7 +132,7 @@ def evaluate(model, dataloader, device):
             eval_annotations.append(batch["annotations"].cpu().numpy())
             eval_ids.append(batch["input_ids"].cpu().numpy())
 
-    logging.info("Done evaluation")
+    logger.info("Done evaluation")
     return np.concatenate(eval_labels), \
            np.concatenate(eval_preds), \
            loss.item(), \
@@ -146,6 +144,11 @@ def evaluate(model, dataloader, device):
 def main():
 
     config = parser.parse_args()
+
+    if config.logging == 'info':
+        logging.basicConfig(level=logging.INFO)
+    elif config.logging == 'debug':
+        logging.basicConfig(level=logging.DEBUG)
 
     np.random.seed(config.seed)
     torch.manual_seed(config.seed)
@@ -168,7 +171,7 @@ def main():
     #---HANDE
 
 
-    logging.info(f"Training on {device}.")
+    logger.info(f"Training on {device}.")
 
 
     timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -189,7 +192,7 @@ def main():
 
     train_loader, dev_loader, test_loader = get_nli_dataset(config, tokenizer)
 
-    logging.info(f"Optimizer {config.optimizer}")
+    logger.info(f"Optimizer {config.optimizer}")
 
     if config.optimizer == "Adam":
         optim = Adam(model.parameters(), lr=0.00002)
@@ -204,16 +207,16 @@ def main():
     #---HANDE
 
     if config.method == "swa":
-        logging.info("SWA training")
+        logger.info("SWA training")
         swa_model = AveragedModel(model)
         swa_scheduler = SWALR(optim, swa_lr=0.00002)
 
     #+++HANDE
     elif config.method == "swag":
         # initialize SWAG
-        logging.info("SWAG training")
+        logger.info("SWAG training")
         model_specs = models.get_model_specs(config.model)
-        swag_model = SWAG(
+        swag_model = SwagForSequenceClassification(
             models.LangModel,
             no_cov_mat=config.no_cov_mat,
             max_num_models=config.max_num_models,
@@ -221,7 +224,8 @@ def main():
             model_cls=model_specs['model_cls'],
             model_subtype=model_specs['model_subtype'],
             tokenizer_cls=model_specs['tokenizer_cls'],
-            tokenizer_subtype=model_specs['tokenizer_subtype']
+            tokenizer_subtype=model_specs['tokenizer_subtype'],
+            device=device
         )
         swag_model.to(device)
 
@@ -241,7 +245,7 @@ def main():
 
 
     for epoch in range(config.epochs):
-        logging.info(f"Epoch {epoch}")
+        logger.info(f"Epoch {epoch}")
 
         print(config.method)
         if config.method == "swa":
@@ -268,17 +272,17 @@ def main():
                 #    swag_model.sample(0.0)
                 #    swag_utils.bn_update(train_loader, swag_model)
                 #    swag_res = swag_utils.eval(dev_loader, swag_model)
-                #    logging.info("SWAG eval 1")
+                #    logger.info("SWAG eval 1")
                 #    #dev_labels, dev_preds, dev_loss = evaluate(model, dev_loader, device)
                 #else:
                 #    # swag_res = {"loss": None, "accuracy": None}
                 #    swag_res = swag_utils.eval(dev_loader, model)
-                #    logging.info("SWAG eval 2")
+                #    logger.info("SWAG eval 2")
 
             #else:
             #    #scheduler.step()
             #    swag_res = swag_utils.eval(dev_loader, model)
-            #    logging.info("eval 1")
+            #    logger.info("eval 1")
 
 
         else:
@@ -298,9 +302,9 @@ def main():
 
         #---HANDE
 
-        logging.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
-        logging.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
-        logging.info(f"Previous best: {best_loss:<.4f}")
+        logger.info(f"Dev accuracy after epoch {epoch+1}: {dev_accuracy}")
+        logger.info(f"Dev loss after epoch {epoch+1}: {dev_loss:<.4f}")
+        logger.info(f"Previous best: {best_loss:<.4f}")
 
         snapshot_path = f"{output_dir}/{config.model}-{config.dataset}_snapshot_epoch_{epoch+1}_devacc_{round(dev_accuracy, 3)}.pt"
         torch.save(swag_model if config.method == "swag" else model, snapshot_path)
@@ -312,7 +316,7 @@ def main():
             early_stopping = early_stopping - 1
 
         if early_stopping == 0:
-            logging.info(f"Stopping early after {epoch+1}/{config.epochs} epochs.")
+            logger.info(f"Stopping early after {epoch+1}/{config.epochs} epochs.")
             stopped_after = epoch+1
             break
 
@@ -381,14 +385,14 @@ def main():
         )
 
 
-    logging.info(f"=== SUMMARY ===")
-    logging.info(f"Model: {model.__class__.__name__}")
-    logging.info(f"Optimizer {config.optimizer}")
-    logging.info(f"Method: {config.method}")
-    logging.info(f"Epochs: {stopped_after}/{config.epochs}")
-    logging.info(f"Batch size: {config.batch_size}")
-    logging.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
-    logging.info(f"Test accuracy: {test_accuracy}")
+    logger.info(f"=== SUMMARY ===")
+    logger.info(f"Model: {model.__class__.__name__}")
+    logger.info(f"Optimizer {config.optimizer}")
+    logger.info(f"Method: {config.method}")
+    logger.info(f"Epochs: {stopped_after}/{config.epochs}")
+    logger.info(f"Batch size: {config.batch_size}")
+    logger.info(f"Training time: {int(hours):0>2}:{int(minutes):0>2}:{seconds:05.2f}")
+    logger.info(f"Test accuracy: {test_accuracy}")
 
     with open(
         f"{output_dir}/results.txt",

@@ -1,4 +1,5 @@
 import sys
+import os
 import copy
 import datasets
 import itertools
@@ -73,19 +74,19 @@ def get_nli_dataset(config, tokenizer):
         logging.info(f"Experiment dataset: {config.dataset}")
 
         train_premises, train_hypotheses, train_labels, train_annotations = _get_data(
-            "data/" + config.dataset + "/train.jsonl", limit=config.train_limit
+            os.path.join(config.datapath, config.dataset, "train.jsonl"), limit=config.train_limit
         )
         logging.info(
             f"First training example: {train_premises[0]} --> {train_hypotheses[0]} ({train_labels[0]})"
         )
         dev_premises, dev_hypotheses, dev_labels, dev_annotations = _get_data(
-            "data/" + config.dataset + "/dev.jsonl", limit=config.dev_limit
+            os.path.join(config.datapath, config.dataset, "dev.jsonl"), limit=config.dev_limit
         )
         logging.info(
             f"First dev example: {dev_premises[0]} --> {dev_hypotheses[0]} ({dev_labels[0]})"
         )
         test_premises, test_hypotheses, test_labels, test_annotations = _get_data(
-            "data/" + config.dataset + "/test.jsonl", limit=config.test_limit
+            os.path.join(config.datapath, config.dataset, "test.jsonl"), limit=config.test_limit
         )
         logging.info(
             f"First test example: {test_premises[0]} --> {test_hypotheses[0]} ({test_labels[0]})"
